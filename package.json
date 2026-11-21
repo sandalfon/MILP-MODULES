@@ -1,0 +1,31 @@
+{
+  "name": "cours-milp-typescript",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tp1": "node modules/module-01-fondamentaux/exemples/01-enumeration.ts",
+    "tp2": "node modules/module-02-programmation-lineaire/exemples/02-sommets-lp.ts",
+    "tp3": "node modules/module-03-variables-binaires/exemples/03-regles-binaires.ts",
+    "tp4": "node modules/module-04-modelisation-avancee/exemples/04-verificateur-contraintes.ts",
+    "tp5": "node modules/module-05-algorithmes-resolution/exemples/05-borne-relaxation.ts",
+    "tp6": "node modules/module-06-glpk/exemples/06-sac-a-dos-glpk.ts",
+    "tp7": "node modules/module-07-diagnostic-qualite/exemples/07-validation.ts",
+    "tp8": "node modules/module-08-selection-items-irt/exemples/08-information-irt.ts",
+    "tp8-solveur": "node modules/module-08-selection-items-irt/exemples/08-assemblage-irt-glpk.ts",
+    "exemples": "node lib/verifier-tout.ts exemples",
+    "corriges": "node lib/verifier-tout.ts corriges",
+    "progression": "node lib/verifier-tout.ts exercices",
+    "nettoyer": "node lib/nettoyer-exercices.ts",
+    "verifier:exercices": "node lib/verifier-exercices.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "typecheck:exercices": "tsc -p tsconfig.exercices.json"
+  },
+  "dependencies": {
+    "glpk.js": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3"
+  }
+}

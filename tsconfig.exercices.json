@@ -1,0 +1,9 @@
+{
+  // Vérifie les exercices à compléter. Tant qu'un TODO renvoie encore
+  // « undefined », TypeScript signale une erreur à cet endroit : c'est voulu,
+  // ces erreurs indiquent ce qu'il reste à écrire.
+  "extends": "./tsconfig.json",
+  "include": ["lib/verif.ts", "modules/*/exercices/**/*.ts"],
+  // Les copies vierges « …-clean.ts » ne sont pas ton travail : elles sont ignorées.
+  "exclude": ["modules/*/exercices/**/*-clean.ts"]
+}

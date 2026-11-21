@@ -155,3 +155,9 @@ vite.config.ts.timestamp-*
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runs
+
+# macOS
+.DS_Store
+
+# Copies faites par npm run nettoyer
+sauvegardes/

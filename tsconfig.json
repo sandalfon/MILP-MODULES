@@ -1,0 +1,25 @@
+{
+  // Vérification de types uniquement : Node.js exécute directement les fichiers .ts
+  // (il retire les annotations au lancement), donc aucune compilation n'est produite.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    // Node exige l'extension réelle dans les imports locaux : "../../../lib/verif.ts".
+    "allowImportingTsExtensions": true,
+    // Interdit la syntaxe TypeScript que Node ne sait pas retirer (enum, namespace...).
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  // Les exercices sont vérifiés à part (tsconfig.exercices.json) :
+  // tant que leurs TODO ne sont pas complétés, ils contiennent des erreurs de type.
+  "include": [
+    "lib/**/*.ts",
+    "modules/*/exemples/**/*.ts",
+    "modules/*/corriges/**/*.ts"
+  ]
+}
