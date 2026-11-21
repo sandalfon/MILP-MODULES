@@ -71,7 +71,29 @@ const roundTo = (quantity: number, decimals: number): number =>
 //            de 100 % d'un produit.
 // (Indice 1 en fin de fichier.)
 function computeFractionalBound(products: Product[], capacity: number): Relaxation {
-  return { bound: undefined, fractions: {} }; // ← à remplacer
+  // Indice 1 (computeFractionalBound) — Méthode gloutonne du §2 :
+  //   const sortedProducts = [...products].sort((first, second) => <ratio de second> - <ratio de first>);
+  //   (ratio = value / cost ; [...products] trie une COPIE)
+  //   const fractions = Object.fromEntries(products.map(product => [product.id, 0]));
+  //   let remainingCapacity = capacity, bound = 0;
+  //   pour chaque product de sortedProducts :
+  //     si remainingCapacity <= 0 → break
+  //     fraction = Math.min(1, remainingCapacity / product.cost)
+  //     fractions[product.id] = fraction ; bound += fraction * product.value ;
+  //     remainingCapacity -= fraction * product.cost
+
+  const sortedProducts = [...products].sort((first, second) =>second.value / second.cost - first.value / first.cost);
+  const fractions = Object.fromEntries(products.map(product => [product.id, 0]))
+
+  let remainingCapacity = capacity, bound = 0;
+  for (const product of sortedProducts) {
+    if (remainingCapacity <= 0) break
+    const fraction = Math.min(1, remainingCapacity / product.cost)
+    fractions[product.id] = fraction;
+    bound += fraction * product.value;
+    remainingCapacity -= fraction * product.cost
+  }
+  return { bound, fractions }; // ← à remplacer
 }
 
 // TODO 2 — Optimum entier par énumération.
@@ -88,7 +110,16 @@ function computeFractionalBound(products: Product[], capacity: number): Relaxati
 //            avec une capacité négative, même la sélection vide ne tient pas → null.
 // (Indice 2 en fin de fichier.)
 function findIntegerOptimum(products: Product[], capacity: number): Incumbent | null {
-  return undefined; // ← à remplacer
+  let best: Incumbent | null = null;
+  for (let mask = 0; mask < 2 ** products.length; mask++) {
+    const selectedProducts = products.filter((_, i) => (mask & (1 << i)) !== 0);
+    const cost = selectedProducts.reduce((sum, product) => sum + product.cost, 0);
+    const value = selectedProducts.reduce((sum, product) => sum + product.value, 0);
+    if (cost <= capacity && (best === null || value > best.value)) {
+      best = { selectedIds: selectedProducts.map(product => product.id), value };
+    }
+  }
+  return best;
 }
 
 // TODO 3 — Gap absolu.
@@ -100,7 +131,7 @@ function findIntegerOptimum(products: Product[], capacity: number): Incumbent | 
 // Exemple  : computeAbsoluteGap(25.4, 25) → 0.4 (à l'arrondi flottant près).
 // (Indice 3 en fin de fichier.)
 function computeAbsoluteGap(bound: number, incumbent: number): number {
-  return undefined; // ← à remplacer
+  return bound - incumbent; // ← à remplacer
 }
 
 // TODO 4 — Gap relatif.
@@ -115,7 +146,9 @@ function computeAbsoluteGap(bound: number, incumbent: number): number {
 //            est nul (computeRelativeGap(0, 0, 0) → 0), Infinity sinon.
 // (Indice 4 en fin de fichier.)
 function computeRelativeGap(bound: number, incumbent: number, reference: number): number {
-  return undefined; // ← à remplacer
+  const difference = Math.abs(bound - incumbent);
+  if (reference === 0) return difference === 0 ? 0 : Infinity;
+  return difference / Math.abs(reference); // ← à remplacer
 }
 
 // ─── 4. PROGRAMME PRINCIPAL (fourni) ────────────────────────────

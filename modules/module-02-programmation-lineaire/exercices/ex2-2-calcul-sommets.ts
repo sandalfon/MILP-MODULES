@@ -84,7 +84,12 @@ const replaceRhs = (constraints: Constraint[], name: string, rhs: number): Const
 // Attention: compare |det| à TOLERANCE, pas à 0 exactement (nombres flottants).
 // (Indice 1 en fin de fichier.)
 function computeIntersection(constraint1: Constraint, constraint2: Constraint): Point | null {
-  return undefined; // ← à remplacer
+  const { coefs: { x: a1, y: b1 }, rhs: c1 } = constraint1
+  const { coefs: { x: a2, y: b2 }, rhs: c2 } = constraint2
+  const det = a1 * b2 - a2 * b1
+  if (Math.abs(det) < TOLERANCE) return null
+
+  return  { x: roundValue((c1*b2 - c2*b1) / det), y: roundValue((a1*c2 - a2*c1) / det) }; // ← à remplacer
 }
 
 // TODO 2 — Le point respecte-t-il toutes les contraintes ?
@@ -96,7 +101,7 @@ function computeIntersection(constraint1: Constraint, constraint2: Constraint): 
 //            isFeasible({ x: 2, y: 2 }, CONSTRAINTS) → true.
 // (Indice 2 en fin de fichier.)
 function isFeasible(point: Point, constraints: Constraint[]): boolean {
-  return undefined; // ← à remplacer
+  return constraints.every(contraint => contraint.coefs.x*point.x + contraint.coefs.y*point.y <=contraint.rhs +TOLERANCE  ); // ← à remplacer
 }
 
 // TODO 3 — Contraintes saturées en un point.
@@ -107,7 +112,7 @@ function isFeasible(point: Point, constraints: Constraint[]): boolean {
 // Exemple  : findBindingConstraints({ x: 2, y: 2 }, CONSTRAINTS) → ["capacite", "x_max"].
 // (Indice 3 en fin de fichier.)
 function findBindingConstraints(point: Point, constraints: Constraint[]): string[] {
-  return undefined; // ← à remplacer
+  return constraints.filter(contraint => Math.abs(contraint.coefs.x*point.x + contraint.coefs.y*point.y -contraint.rhs) <=TOLERANCE).map(contraint => contraint.name); // ← à remplacer
 }
 
 // TODO 4 — Sommets de la région réalisable.
@@ -121,7 +126,17 @@ function findBindingConstraints(point: Point, constraints: Constraint[]): string
 //            une intersection peut être null (droites parallèles) ou hors de la région.
 // (Indice 4 en fin de fichier.)
 function computeVertices(constraints: Constraint[]): Point[] {
-  return []; // ← à remplacer
+  const intersections = constraints
+      .flatMap((constraint1, i) =>
+        constraints.slice(i + 1).map(constraint2 => computeIntersection(constraint1, constraint2))
+      )
+      .filter((point): point is Point => point !== null && isFeasible(point, constraints))
+      .reduce(
+        (acc, point) => acc.set(`${point.x};${point.y}`, point),
+        new Map<string, Point>()
+      )
+
+    return Array.from(intersections.values()).sort(byXThenY)
 }
 
 // TODO 5 — Meilleur sommet pour l'objectif.
@@ -134,7 +149,16 @@ function computeVertices(constraints: Constraint[]): Point[] {
 //            → { x: 2, y: 2, value: 10, bindingConstraints: ["capacite", "x_max"] }.
 // Attention: région vide (ex. x ≤ −1 et x ≥ 0) → aucun sommet → null.
 function findOptimum(constraints: Constraint[], objective: Objective): Optimum | null {
-  return undefined; // ← à remplacer
+  const candidates = computeVertices(constraints);
+  if (candidates.length === 0) return null;      // région vide : LP infaisable
+  const best = candidates.reduce((bestVertex, vertex) =>
+    computeObjectiveValue(vertex, objective) > computeObjectiveValue(bestVertex, objective) ? vertex : bestVertex);
+  return {
+    x: best.x,
+    y: best.y,
+    value: computeObjectiveValue(best, objective),
+    bindingConstraints: findBindingConstraints(best, constraints)
+  }; // ← à remplacer
 }
 
 // ─── 4. PROGRAMME PRINCIPAL (fourni) ────────────────────────────
