@@ -71,6 +71,7 @@ const fitsBudget = (x: Decision): boolean => totalCost(x) <= BUDGET;
 // (Indice 1 en fin de fichier.)
 function maskToDecision(mask: number): Decision {
   const x: Decision = {};
+  PRODUCTS.forEach((product, i) => { x[product.id] = (mask & (1 << i)) ?1 :0 })
   // ... à compléter
   return x;
 }
@@ -87,6 +88,8 @@ function maskToDecision(mask: number): Decision {
 // (Indice 2 en fin de fichier.)
 function generateAllDecisions(): Decision[] {
   const decisions: Decision[] = [];
+  for (let mask = 0; mask < 2 ** PRODUCTS.length; mask++)
+    decisions.push(maskToDecision(mask))
   // ... à compléter
   return decisions;
 }
@@ -107,9 +110,12 @@ function generateAllDecisions(): Decision[] {
 // Attention: en cas d'égalité de valeur, garde la PREMIÈRE solution trouvée.
 // (Indice 3 en fin de fichier.)
 function findBestSolution(decisions: Decision[], isFeasible: FeasibilityTest): Solution | null {
-  let best: Solution | null = null;
+
+  const feasibleDecision = decisions.filter(decision => isFeasible(decision))
+  if (feasibleDecision.length ===0) return null
+  const bestDecision =  feasibleDecision.reduce((meilleur, decision) => totalValue(decision) > totalValue(meilleur) ? decision : meilleur)
   // ... à compléter
-  return best;
+  return {selectedIds: listSelectedIds(bestDecision), cost: totalCost(bestDecision), value:totalValue(bestDecision) };
 }
 
 // ─── 4. PROGRAMME PRINCIPAL (fourni) ────────────────────────────

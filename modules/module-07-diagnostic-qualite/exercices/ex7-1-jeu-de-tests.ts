@@ -119,8 +119,22 @@ function runTestSuite(testCases: TestCase[]): { passedCount: number; failedCount
 // Attention: un item sans id ne produit QUE le message « id manquant » ;
 //            un id dupliqué n'est signalé qu'à partir de sa 2e apparition.
 // (Indice 1 en fin de fichier.)
+//  items.forEach((item, position) => { ... }) et un
+//   Set des id déjà vus ; un `return` dans le forEach passe à l'item suivant.
 function validateBank(items: RawItem[]): string[] {
-  return undefined; // ← à remplacer (renvoie un tableau de messages)
+
+  const errors: string[] = [];
+  const seenIds = new Set<string>();
+  items.forEach((item, position) => {
+    if (!item.id) {
+      errors.push(`id manquant (position ${position})`);
+      return;
+    }
+    if (seenIds.has(item.id)) errors.push(`id dupliqué : ${item.id}`);
+    seenIds.add(item.id);
+      if (!item.domain) errors.push(`domaine manquant : ${item.id}`);
+  })
+  return errors; // ← à remplacer (renvoie un tableau de messages)
 }
 
 // TODO 2 — Contradictions détectables sans solveur.
@@ -147,7 +161,22 @@ function validateBank(items: RawItem[]): string[] {
 //            (maximum sur A seulement), la sortie est [].
 // (Indice 2 en fin de fichier.)
 function validateRuleConsistency(rules: Rules, items: Item[]): string[] {
-  return undefined; // ← à remplacer
+  const errors: string[] = [];
+  const minimums = rules.minimums ?? {}
+  const maximums = rules.minimums ?? {}
+   const domains = [...new Set(items.map(item => item.domain))];
+
+  const minimumsTotal = Object.values(minimums).reduce((sum, minimum) => sum + minimum, 0);
+  if (minimumsTotal > rules.testLength) {
+    errors.push(`quotas minimums (${minimumsTotal}) > longueur (${rules.testLength})`);
+  }
+  if (domains.every(domain => maximums[domain] !== undefined)) {
+    const maximumsTotal = domains.reduce((sum, domain) => sum + maximums[domain], 0);
+    if (maximumsTotal < rules.testLength) {
+      errors.push(`quotas maximums (${maximumsTotal}) < longueur (${rules.testLength})`);
+    }
+  }
+  return errors; // ← à remplacer
 }
 
 // TODO 3 — Validateur indépendant : renvoie TOUTES les violations.
@@ -175,7 +204,41 @@ function validateRuleConsistency(rules: Rules, items: Item[]): string[] {
 //            minimum de 0 ne doit produire aucune erreur.
 // (Indice 3 en fin de fichier.)
 function validateSelection(selectedIds: string[], items: Item[], rules: Rules): string[] {
-  return undefined; // ← à remplacer
+  const errors: string[] = [];
+  const itemsById = new Map(items.map(item => [item.id, item]));
+  const seenIds = new Set<string>();
+  const duplicateIds = new Set<string>();
+  for (const id of selectedIds) {
+    if (seenIds.has(id)) duplicateIds.add(id);
+    seenIds.add(id);
+  }
+  for (const id of duplicateIds) errors.push(`item en double : ${id}`);
+
+
+  const countByDomain: Record<string, number> = {};
+  for (const id of seenIds) {
+    const item = itemsById.get(id);
+    if (!item) {
+      errors.push(`item inconnu : ${id}`);
+      continue;
+    }
+    countByDomain[item.domain] = (countByDomain[item.domain] || 0) + 1;
+  }
+
+  if (selectedIds.length !== rules.testLength) {
+    errors.push(`longueur incorrecte : ${selectedIds.length} ≠ ${rules.testLength}`);
+  }
+
+  for (const [domain, minimum] of Object.entries(rules.minimums ?? {})) {
+    const observedCount = countByDomain[domain] || 0;
+    if (observedCount < minimum) errors.push(`quota min ${domain} : ${observedCount} < ${minimum}`);
+  }
+  for (const [domain, maximum] of Object.entries(rules.maximums ?? {})) {
+    const observedCount = countByDomain[domain] || 0;
+    if (observedCount > maximum) errors.push(`quota max ${domain} : ${observedCount} > ${maximum}`);
+  }
+
+  return errors; // ← à remplacer
 }
 
 // TODO 4 — Complète la suite (8 cas, 6 catégories).
