@@ -8,7 +8,13 @@
  *
  *  OBJECTIF
  *  Résoudre un petit problème d'ouverture d'usines avec coûts fixes,
- *  en combinant énumération des binaires et calcul de la production.
+ *  en combinant énumération des binaires et calcul de la production :
+ *  - calculer la capacité ouverte par une décision y (TODO 1) ;
+ *  - pour une ouverture fixée, répartir la production au moindre coût,
+ *    ou détecter qu'elle est irréalisable (TODO 2) ;
+ *  - calculer le coût total, coûts fixes compris (TODO 3) ;
+ *  - recontrôler une solution contrainte par contrainte (TODO 4) ;
+ *  - énumérer les 8 ouvertures et garder la moins chère (TODO 5).
  *
  *  PRÉREQUIS
  *  - Exercice 4.2 : liaison q_k ≤ cap_k · y_k.
@@ -88,8 +94,11 @@ function computeOpenCapacity(y: Opening): number {
 // TODO 2 — Répartition de coût minimal pour une ouverture fixée.
 // Objectif : une fois y fixé, il reste un problème continu : produire
 //            exactement DEMAND unités au moindre coût unitaire, sans
-//            dépasser la capacité des usines OUVERTES (q_k ≤ cap_k · y_k).
-//            On remplit d'abord les usines les moins chères à l'unité.
+//            dépasser la capacité des usines OUVERTES (q_k ≤ cap_k · y_k) :
+//            - si la capacité ouverte ne couvre pas DEMAND → irréalisable ;
+//            - une usine fermée produit 0 ;
+//            - les usines ouvertes sont remplies de la moins chère à la plus
+//              chère à l'unité, jusqu'à couvrir exactement DEMAND.
 // Entrée   : y, l'ouverture de chaque usine, ex. { U1: 0, U2: 1, U3: 1 }.
 // Sortie   : la production de chaque usine { U1: q1, U2: q2, U3: q3 }
 //            (0 pour une usine fermée), ou null si l'ouverture est
@@ -120,8 +129,9 @@ function computeTotalCost(y: Opening, production: Production): number {
 
 // TODO 4 — Contrôle indépendant d'une solution.
 // Objectif : recontrôler, sans faire confiance à allocateProduction, les
-//            contraintes de la formulation : liaison 0 ≤ q_k ≤ cap_k · y_k
-//            pour chaque usine, et demande Σ_k q_k = DEMAND.
+//            contraintes de la formulation, dans cet ordre :
+//            - liaison de chaque usine : 0 ≤ q_k ≤ cap_k · y_k ;
+//            - demande : Σ_k q_k = DEMAND.
 // Entrée   : y, l'ouverture, ex. { U1: 0, U2: 1, U3: 1 } ;
 //            production, ex. { U1: 10, U2: 40, U3: 50 }.
 // Sortie   : un tableau de noms de contraintes violées (string[]) : d'abord
@@ -138,13 +148,16 @@ function findViolatedConstraints(y: Opening, production: Production): string[] {
 }
 
 // TODO 5 — Meilleure ouverture par énumération.
-// Objectif : parcourir les 2³ = 8 ouvertures possibles, calculer pour
-//            chacune la répartition optimale et son coût total, et garder
-//            la solution de coût minimal (résolution exacte de la MILP).
+// Objectif : résoudre exactement la MILP par énumération :
+//            - parcourir les 2³ = 8 ouvertures possibles ;
+//            - pour chacune, calculer la répartition optimale et son coût
+//              total (en écartant les ouvertures irréalisables) ;
+//            - garder la solution de coût minimal.
 // Entrée   : aucune ; la fonction utilise les outils fournis et les TODO 2 et 3.
-// Sortie   : une Solution { selectedIds, production, cost } (selectedIds =
-//            identifiants des usines ouvertes), ou null si aucune ouverture
-//            n'est réalisable.
+// Sortie   : une Solution, ou null si aucune ouverture n'est réalisable, avec :
+//            selectedIds, les identifiants des usines ouvertes ;
+//            production ;
+//            cost.
 // Exemple  : findBestOpening() → { selectedIds: ["U2", "U3"], production: { U1: 0, U2: 50, U3: 50 }, cost: 800 }.
 // Attention: une ouverture irréalisable ne doit jamais être retenue.
 // (Indice 5 en fin de fichier.)

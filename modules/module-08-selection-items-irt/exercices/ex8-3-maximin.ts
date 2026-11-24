@@ -9,7 +9,14 @@
  *  OBJECTIF
  *  Maximiser l'information du test AU PIRE niveau de la grille θ, en
  *  linéarisant le « min » avec une variable auxiliaire continue z, puis
- *  comparer avec l'objectif moyen de l'exercice 8.2.
+ *  comparer avec l'objectif moyen de l'exercice 8.2, en quatre étapes :
+ *  - encadrer le nombre d'items de chaque domaine entre un minimum et
+ *    un maximum, en une seule contrainte par domaine (TODO 1) ;
+ *  - écrire, pour chaque θ de la grille, la contrainte qui force z à
+ *    rester sous l'information du test en ce θ (TODO 2) ;
+ *  - assembler le modèle maximin complet, avec z continue (TODO 3) ;
+ *  - recalculer la TIF de la sélection à chaque θ, sans le solveur,
+ *    pour contrôler z et comparer les deux objectifs (TODO 4).
  *
  *  PRÉREQUIS
  *  - Exercice 8.2 (contraintes de longueur et d'exclusion fournies).
@@ -126,8 +133,10 @@ async function solveModel(model: LP): Promise<SolveOutcome> {
 // TODO 1 — Quotas bornés des deux côtés.
 // Objectif : pour chaque domaine k, écrire min ≤ Σ_{i ∈ k} x_i ≤ max en UNE seule
 //            contrainte à double borne (au lieu d'un GLP_LO et d'un GLP_UP).
-// Entrée   : items (ex. ITEMS) ; domains (ex. ["A", "B", "C", "D"]) ;
-//            min, max, les bornes du nombre d'items par domaine (ex. 1 et 2).
+// Entrée   : items (ex. ITEMS) ;
+//            domains (ex. ["A", "B", "C", "D"]) ;
+//            min, la borne basse du nombre d'items par domaine (ex. 1) ;
+//            max, la borne haute du nombre d'items par domaine (ex. 2).
 // Sortie   : un tableau de GlpkConstraint, une par domaine, ne portant que sur les
 //            items du domaine (coef 1), avec bnds de type glpk.GLP_DB, lb = min, ub = max.
 // Exemple  : buildMinMaxQuotaConstraints(ITEMS, RULES.domains, 1, 2) → 4 contraintes
@@ -140,10 +149,12 @@ function buildMinMaxQuotaConstraints(items: Item[], domains: string[], min: numb
 // TODO 2 — Contraintes de linéarisation du maximin.
 // Objectif : pour chaque θ de la grille, écrire z ≤ Σ_i I_i(θ)·x_i sous la forme
 //            glpk.js z − Σ_i I_i(θ)·x_i ≤ 0 (variables à gauche, constante à droite).
-// Entrée   : items (ex. ITEMS) ; thetaGrid, les niveaux θ (ex. THETA_GRID = [-1, 0, 1]).
-// Sortie   : un tableau de GlpkConstraint, une par θ : vars contient d'abord
-//            { name: "z", coef: 1 }, puis un terme par item de coefficient
-//            −information2PL(item.a, item.b, theta) ; bnds de type glpk.GLP_UP, ub = 0.
+// Entrée   : items (ex. ITEMS) ;
+//            thetaGrid, les niveaux θ (ex. THETA_GRID = [-1, 0, 1]).
+// Sortie   : un tableau de GlpkConstraint, une par θ :
+//              vars contient d'abord { name: "z", coef: 1 }, puis un terme par item
+//                de coefficient −information2PL(item.a, item.b, theta) ;
+//              bnds de type glpk.GLP_UP, ub = 0.
 // Exemple  : buildMaximinConstraints(ITEMS, THETA_GRID) → 3 contraintes de 13 termes ;
 //            dans celle de θ = 1, z a le coefficient +1 et q05 ≈ −0.9610.
 // Attention: le SIGNE des coefficients des items est négatif ; avec +I, le modèle
@@ -166,12 +177,20 @@ function buildTestConstraints(items: Item[], rules: Rules): GlpkConstraint[] {
 // TODO 3 — Modèle maximin complet.
 // Objectif : assembler MAX z sous les contraintes du test et les contraintes
 //            maximin, avec x_i binaires et z continue ≥ 0 (cours §5).
-// Entrée   : items (ex. ITEMS) ; rules (ex. RULES, quotas de 1 à 2 par domaine) ;
+//            Le modèle contient :
+//            - l'objectif, à maximiser, qui ne porte que sur z ;
+//            - les contraintes du test (longueur, quotas, exclusions) ;
+//            - les contraintes maximin, une par θ de thetaGrid ;
+//            - la déclaration des variables d'items comme binaires ;
+//            - la borne inférieure 0 de la variable continue z.
+// Entrée   : items (ex. ITEMS) ;
+//            rules (ex. RULES, quotas de 1 à 2 par domaine) ;
 //            thetaGrid (ex. THETA_GRID).
 // Sortie   : un Model { name, objective, subjectTo, binaries, bounds } :
-//            objective en glpk.GLP_MAX avec le seul terme { name: "z", coef: 1 } ;
-//            subjectTo = contraintes du test puis contraintes maximin ;
-//            binaries = les id des items ; bounds = [{ name: "z", type: glpk.GLP_LO, lb: 0, ub: 0 }].
+//              objective en glpk.GLP_MAX avec le seul terme { name: "z", coef: 1 } ;
+//              subjectTo = contraintes du test puis contraintes maximin ;
+//              binaries = les id des items ;
+//              bounds = [{ name: "z", type: glpk.GLP_LO, lb: 0, ub: 0 }].
 // Exemple  : buildMaximinModel(ITEMS, RULES, THETA_GRID) → binaries sans "z",
 //            bounds[0].name = "z", objectif ["z"] ; résolu, z ≈ 2.2011.
 // Attention: ne mets pas z dans binaries : il ne pourrait valoir que 0 ou 1.

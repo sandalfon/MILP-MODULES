@@ -9,7 +9,14 @@
  *  OBJECTIF
  *  Construire avec glpk.js la MILP qui choisit 6 items sur 12 en
  *  maximisant l'information moyenne sur θ ∈ {−1, 0, 1}, puis valider
- *  la solution de façon indépendante.
+ *  la solution de façon indépendante, en quatre étapes :
+ *  - écrire chaque famille de contraintes au format glpk.js : longueur
+ *    du test, quotas par domaine, exclusion entre deux items (TODO 1 à 3) ;
+ *  - assembler le modèle complet : objectif, contraintes, variables
+ *    binaires (TODO 4) ;
+ *  - lire dans la réponse du solveur les items retenus (TODO 5) ;
+ *  - recompter les règles sur cette sélection, SANS réutiliser le
+ *    modèle, pour lister celles qui sont violées (TODO 6).
  *
  *  PRÉREQUIS
  *  - Exercice 8.1 (les coefficients score de SCORED_ITEMS sont fournis).
@@ -99,11 +106,11 @@ const SCORED_ITEMS: ScoredItem[] = ITEMS.map(item => ({
 // TODO 1 — Contrainte de longueur du test.
 // Objectif : écrire Σ_i x_i = testLength au format glpk.js, pour imposer
 //            exactement testLength items dans le test.
-// Entrée   : items, les items candidats (ex. ITEMS, 12 items) ; testLength, la
-//            longueur imposée (ex. 6).
-// Sortie   : une GlpkConstraint { name, vars, bnds } : vars contient un terme
-//            { name: <id de l'item>, coef: 1 } par item ; bnds est de type
-//            glpk.GLP_FX avec lb = ub = testLength.
+// Entrée   : items, les items candidats (ex. ITEMS, 12 items) ;
+//            testLength, la longueur imposée (ex. 6).
+// Sortie   : une GlpkConstraint { name, vars, bnds } :
+//              vars contient un terme { name: <id de l'item>, coef: 1 } par item ;
+//              bnds est de type glpk.GLP_FX avec lb = ub = testLength.
 // Exemple  : buildLengthConstraint(ITEMS, 6) → 12 termes de coefficient 1,
 //            bnds { type: GLP_FX, lb: 6, ub: 6 } ; un nom comme "longueur_6".
 // Attention: avec GLP_FX, lb ET ub doivent valoir testLength.
@@ -115,11 +122,12 @@ function buildLengthConstraint(items: Item[], testLength: number): GlpkConstrain
 // TODO 2 — Contraintes de quotas par domaine.
 // Objectif : pour CHAQUE domaine k, écrire Σ_{i ∈ k} x_i ≥ minimum, afin que
 //            chaque domaine de contenu soit représenté dans le test.
-// Entrée   : items, les items candidats (ex. ITEMS) ; domains, les domaines
-//            (ex. ["A", "B", "C", "D"]) ; minimum, le nombre d'items requis (ex. 1).
+// Entrée   : items, les items candidats (ex. ITEMS) ;
+//            domains, les domaines (ex. ["A", "B", "C", "D"]) ;
+//            minimum, le nombre d'items requis (ex. 1).
 // Sortie   : un TABLEAU de GlpkConstraint, une par domaine, dans l'ordre de domains :
-//            vars ne contient que les items du domaine (coef 1) ; bnds est de type
-//            glpk.GLP_LO avec lb = minimum (ub = 0, ignoré).
+//              vars ne contient que les items du domaine (coef 1) ;
+//              bnds est de type glpk.GLP_LO avec lb = minimum (ub = 0, ignoré).
 // Exemple  : buildQuotaConstraints(ITEMS, ["A", "B", "C", "D"], 1) → 4 contraintes
 //            de 3 termes ; celle de A porte sur q01, q02, q03, avec GLP_LO, lb = 1.
 // Attention: les contraintes doivent être générées à partir des données, pas
@@ -132,9 +140,12 @@ function buildQuotaConstraints(items: Item[], domains: string[], minimum: number
 // TODO 3 — Contrainte d'exclusion entre deux items « ennemis ».
 // Objectif : écrire x_id1 + x_id2 ≤ 1 : les deux items ne peuvent pas être
 //            dans le même test.
-// Entrée   : id1, id2, les identifiants des deux items, ex. "q02" et "q05".
-// Sortie   : une GlpkConstraint dont vars contient les deux termes de coefficient 1
-//            (dans l'ordre id1, id2) et dont bnds est de type glpk.GLP_UP avec ub = 1.
+// Entrée   : les identifiants des deux items :
+//            id1, ex. "q02" ;
+//            id2, ex. "q05".
+// Sortie   : une GlpkConstraint :
+//              vars contient les deux termes de coefficient 1 (dans l'ordre id1, id2) ;
+//              bnds est de type glpk.GLP_UP avec ub = 1.
 // Exemple  : buildExclusionConstraint("q02", "q05") → variables ["q02", "q05"],
 //            GLP_UP, ub = 1.
 // (Indice 3 en fin de fichier.)
@@ -145,13 +156,20 @@ function buildExclusionConstraint(id1: string, id2: string): GlpkConstraint {
 // TODO 4 — Modèle complet « information moyenne ».
 // Objectif : assembler MAX Σ score_i · x_i sous les contraintes de longueur,
 //            de quotas et d'exclusion, avec x_i binaires (formulation de l'en-tête).
+//            Le modèle contient :
+//            - l'objectif, à maximiser, avec le score de chaque item comme coefficient ;
+//            - la contrainte de longueur (rules.testLength) ;
+//            - une contrainte de quota par domaine (rules.domains, rules.minPerDomain) ;
+//            - une contrainte d'exclusion par paire de rules.exclusions ;
+//            - la déclaration de toutes les variables comme binaires.
 // Entrée   : items, les items notés (ex. SCORED_ITEMS, chacun avec son score) ;
 //            rules, les règles du test (ex. RULES : testLength 6, domains A à D,
-//            minPerDomain 1, exclusions [["q02", "q05"]]).
+//              minPerDomain 1, exclusions [["q02", "q05"]]).
 // Sortie   : un Model { name, objective, subjectTo, binaries } :
-//            objective en glpk.GLP_MAX avec un terme { name: id, coef: score } par item ;
-//            subjectTo = la contrainte de longueur, puis les quotas, puis une
-//            contrainte par paire de rules.exclusions ; binaries = tous les id d'items.
+//              objective en glpk.GLP_MAX avec un terme { name: id, coef: score } par item ;
+//              subjectTo = la contrainte de longueur, puis les quotas, puis une
+//                contrainte par paire de rules.exclusions ;
+//              binaries = tous les id d'items.
 // Exemple  : buildModel(SCORED_ITEMS, RULES) → 12 termes dans l'objectif,
 //            1 + 4 + 1 = 6 contraintes, 12 binaires.
 // Attention: sans binaries, GLPK résout la relaxation continue et peut renvoyer
@@ -178,6 +196,10 @@ function extractSelectedItems(solverOutput: SolverOutput, items: ScoredItem[]): 
 // TODO 6 — Validateur INDÉPENDANT de la sélection.
 // Objectif : recompter les règles à partir des données brutes, sans réutiliser
 //            le modèle, pour détecter une erreur de formulation (cours §8).
+//            Trois contrôles, dans cet ordre :
+//            - le nombre d'items est-il égal à rules.testLength ?
+//            - chaque domaine de rules.domains a-t-il au moins rules.minPerDomain items ?
+//            - chaque paire de rules.exclusions a-t-elle au plus un item présent ?
 // Entrée   : selectedItems, les items du test (ex. ITEMS.slice(0, 6) : q01 à q06) ;
 //            rules, les règles (ex. RULES).
 // Sortie   : un tableau de messages, un par règle violée ([] si tout est respecté) :

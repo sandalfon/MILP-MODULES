@@ -8,7 +8,13 @@
  *
  *  OBJECTIF
  *  Comparer l'optimum d'un problème entier à celui de sa relaxation
- *  linéaire, et constater qu'arrondir la solution continue ne suffit pas.
+ *  linéaire, et constater qu'arrondir la solution continue ne suffit pas :
+ *  - résoudre la relaxation continue, dont la valeur est une borne
+ *    supérieure de l'optimum entier (TODO 1) ;
+ *  - énumérer les points entiers réalisables (TODO 2) ;
+ *  - en déduire l'optimum entier (TODO 3) ;
+ *  - arrondir la solution continue de deux façons, au plus proche et vers
+ *    le bas, et comparer le résultat à l'optimum entier (TODO 4 et 5).
  *
  *  PRÉREQUIS
  *  - Exercice 2.2 (le calcul des sommets est fourni ci-dessous).

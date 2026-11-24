@@ -7,8 +7,14 @@
  *  Lancer : node modules/module-05-algorithmes-resolution/exercices/ex5-1-borne-et-gap.ts
  *
  *  OBJECTIF
- *  Calculer la borne de la relaxation continue d'un sac à dos, la
- *  comparer à l'optimum entier et mesurer le gap selon deux conventions.
+ *  Encadrer l'optimum d'un sac à dos entre une borne et une solution
+ *  entière, puis mesurer l'écart qui les sépare, en trois étapes :
+ *  - calculer la borne SUPÉRIEURE donnée par la relaxation continue, et
+ *    la part de chaque produit qu'elle prend (TODO 1) ;
+ *  - trouver l'optimum ENTIER par énumération : c'est l'incumbent
+ *    (TODO 2) ;
+ *  - mesurer le gap entre les deux : en absolu (TODO 3), puis en
+ *    relatif, rapporté à la borne OU à l'incumbent (TODO 4).
  *
  *  PRÉREQUIS
  *  - Module 1 : énumération (exercice 1.2).
@@ -56,13 +62,17 @@ const roundTo = (quantity: number, decimals: number): number =>
 
 // TODO 1 — Borne de la relaxation continue du sac à dos.
 // Objectif : résoudre la relaxation continue (chaque x_i ∈ [0,1] au lieu de {0,1},
-//            §2 du cours) pour obtenir une borne SUPÉRIEURE de l'optimum entier,
-//            et dire quelle part de chaque produit cette relaxation prend.
+//            §2 du cours) et en tirer deux résultats :
+//            - la borne : la valeur de la relaxation, borne SUPÉRIEURE de
+//              l'optimum entier ;
+//            - les fractions : la part (entre 0 et 1) que la relaxation
+//              prend de CHAQUE produit.
 // Entrée   : products, les produits { id, cost, value }, ex. PRODUCTS (A, B, C, D) ;
 //            capacity, le budget à ne pas dépasser, ex. 100.
-// Sortie   : un objet Relaxation { bound, fractions } : bound est la valeur de la
-//            relaxation, fractions associe à CHAQUE id la part prise, entre 0 et 1
-//            (0 pour un produit non pris).
+// Sortie   : un objet Relaxation { bound, fractions } :
+//            bound, la valeur de la relaxation ;
+//            fractions, associe à CHAQUE id la part prise, entre 0 et 1
+//              (0 pour un produit non pris).
 // Exemple  : computeFractionalBound(PRODUCTS, 100)
 //            → { bound: 25.4, fractions: { A: 1, B: 0.2, C: 1, D: 1 } } ;
 //            avec capacity = 90 → bound = 23 (aucune fraction).
@@ -75,13 +85,17 @@ function computeFractionalBound(products: Product[], capacity: number): Relaxati
 }
 
 // TODO 2 — Optimum entier par énumération.
-// Objectif : trouver la meilleure sélection ENTIÈRE réalisable (coût total
-//            ≤ capacity), en examinant les 2ⁿ sélections comme au module 1 :
-//            c'est l'incumbent qu'on comparera à la borne.
-// Entrée   : products, ex. PRODUCTS ; capacity, ex. 100.
-// Sortie   : un Incumbent { selectedIds, value } : ids des produits retenus
-//            (dans l'ordre de products) et valeur totale ; null si aucune
-//            sélection n'est réalisable.
+// Objectif : trouver la meilleure sélection ENTIÈRE réalisable, comme au
+//            module 1 : c'est l'incumbent qu'on comparera à la borne.
+//            - examiner chacune des 2ⁿ sélections de produits ;
+//            - écarter celles dont le coût total dépasse capacity ;
+//            - parmi les autres, garder celle de plus grande valeur.
+// Entrée   : products, ex. PRODUCTS ;
+//            capacity, ex. 100.
+// Sortie   : un Incumbent { selectedIds, value } :
+//            selectedIds, les ids des produits retenus (dans l'ordre de products) ;
+//            value, la valeur totale ;
+//            null si aucune sélection n'est réalisable.
 // Exemple  : findIntegerOptimum(PRODUCTS, 100) → { selectedIds: ["A", "B", "D"], value: 25 } ;
 //            findIntegerOptimum(PRODUCTS, 90) → valeur 23.
 // Attention: en cas d'égalité de valeur, garde la PREMIÈRE sélection trouvée ;
@@ -94,8 +108,8 @@ function findIntegerOptimum(products: Product[], capacity: number): Incumbent | 
 // TODO 3 — Gap absolu.
 // Objectif : mesurer l'écart entre la borne (ce qu'on ne peut pas dépasser)
 //            et l'incumbent (ce qu'on a déjà), §4 du cours.
-// Entrée   : bound, la borne, ex. 25.4 ; incumbent, la valeur de la meilleure
-//            solution entière connue, ex. 25.
+// Entrée   : bound, la borne, ex. 25.4 ;
+//            incumbent, la valeur de la meilleure solution entière connue, ex. 25.
 // Sortie   : un nombre, l'écart borne − incumbent (≥ 0 en maximisation).
 // Exemple  : computeAbsoluteGap(25.4, 25) → 0.4 (à l'arrondi flottant près).
 // (Indice 3 en fin de fichier.)
@@ -106,8 +120,12 @@ function computeAbsoluteGap(bound: number, incumbent: number): number {
 // TODO 4 — Gap relatif.
 // Objectif : exprimer l'écart |bound − incumbent| en proportion d'une
 //            `reference`, qui est la borne (convention du cours) OU
-//            l'incumbent (convention de GLPK, CPLEX…).
-// Entrée   : bound, ex. 25.4 ; incumbent, ex. 25 ; reference, ex. 25.4 ou 25.
+//            l'incumbent (convention de GLPK, CPLEX…). Deux cas :
+//            - reference non nulle : l'écart divisé par |reference| ;
+//            - reference nulle : pas de division (voir Attention).
+// Entrée   : bound, ex. 25.4 ;
+//            incumbent, ex. 25 ;
+//            reference, ex. 25.4 ou 25.
 // Sortie   : un nombre sans unité (0.016 signifie 1,6 %).
 // Exemple  : computeRelativeGap(25.4, 25, 25.4) → 0.4 / 25.4 ≈ 0.01575 ;
 //            computeRelativeGap(25.4, 25, 25) → 0.016.

@@ -8,9 +8,15 @@
  *
  *  OBJECTIF
  *  Fiabiliser une chaîne d'assemblage de test AVANT et APRÈS le
- *  solveur : contrôler les données, détecter les règles contradictoires
- *  par simple arithmétique, valider une sélection, et figer tout cela
- *  dans une suite de tests nommés.
+ *  solveur, en quatre étapes :
+ *  - AVANT le modèle, contrôler les DONNÉES de la banque : id manquant,
+ *    id dupliqué, domaine manquant (TODO 1) ;
+ *  - AVANT le solveur, détecter les RÈGLES contradictoires par simple
+ *    arithmétique, sans résoudre quoi que ce soit (TODO 2) ;
+ *  - APRÈS le solveur, VALIDER une sélection de façon indépendante et
+ *    lister toutes ses violations (TODO 3) ;
+ *  - FIGER ce comportement dans une suite de 8 tests nommés, rangés en
+ *    6 catégories, pour repérer toute régression (TODO 4).
  *
  *  PRÉREQUIS
  *  - Module 4 (exemple commenté 04-verificateur-contraintes.ts) et exemple
@@ -39,9 +45,10 @@
  *         `quota max ${domain} : ${observedCount} > ${maximum}`
  *       (observedCount = nombre d'items du domaine dans la sélection)
  *       Les quotas se comptent sur les id DISTINCTS et connus.
- *    4. Complète la suite de tests : au moins 8 cas au total, couvrant
- *       les 6 catégories "faisable", "infaisable", "données manquantes",
- *       "doublons", "redondance", "extrême".
+ *    4. Complète la suite de tests : 8 cas au total (2 fournis, 6 à
+ *       écrire), couvrant les 6 catégories "faisable", "infaisable",
+ *       "données manquantes", "doublons", "redondance", "extrême".
+ *       La liste des cas attendus est détaillée au-dessus de testSuite.
  *
  *  RÉSULTAT ATTENDU
  *  Tous les cas de ta suite passent, et l'auto-vérification est entièrement ✔.
@@ -118,9 +125,13 @@ function validateBank(items: RawItem[]): string[] {
 
 // TODO 2 — Contradictions détectables sans solveur.
 // Objectif : prouver par de simples sommes que des règles sont
-//            contradictoires (Σ minimums > longueur, Σ maximums < longueur,
-//            minimum d'un domaine > items disponibles ou > son maximum),
-//            avec un message précis, avant d'appeler le solveur.
+//            contradictoires, avec un message précis, avant d'appeler le
+//            solveur. Quatre contrôles, dans cet ordre :
+//            - Σ minimums > longueur du test ;
+//            - Σ maximums < longueur du test (si tous les domaines ont un maximum) ;
+//            puis, pour chaque domaine qui a un minimum :
+//            - minimum > nombre d'items du domaine dans la banque ;
+//            - minimum > maximum du même domaine.
 // Entrée   : rules, ex. { testLength: 4, minimums: { A: 2, B: 2, C: 1 } } ;
 //            items, la banque (ITEMS : 3 items A, 2 items B, 2 items C).
 // Sortie   : un tableau de messages (string[]) dans l'ordre de la
@@ -142,10 +153,16 @@ function validateRuleConsistency(rules: Rules, items: Item[]): string[] {
 // TODO 3 — Validateur indépendant : renvoie TOUTES les violations.
 // Objectif : confronter une sélection aux règles sans réutiliser le code du
 //            modèle, et lister toutes les violations (pas seulement la
-//            première) pour corriger plus vite.
+//            première) pour corriger plus vite. Cinq contrôles, dans cet ordre :
+//            - id présents plusieurs fois dans la sélection ;
+//            - id absents de la banque ;
+//            - longueur de la sélection ≠ longueur du test ;
+//            - domaines sous leur minimum ;
+//            - domaines au-dessus de leur maximum.
 // Entrée   : selectedIds, les id retenus, ex. ["a1", "a1", "a2", "a3", "x"] ;
-//            items, la banque (ITEMS) ; rules, ex. RULES
-//            (longueur 4, au moins 1 A, 1 B, 1 C, au plus 2 A).
+//            items, la banque (ITEMS) ;
+//            rules, ex. RULES
+//              (longueur 4, au moins 1 A, 1 B, 1 C, au plus 2 A).
 // Sortie   : un tableau de messages (string[]) dans l'ordre de la
 //            CONSIGNE 3, [] si la sélection est conforme.
 // Exemple  : validateSelection(["a1", "a2", "b1", "c1"], ITEMS, RULES) → [] ;
@@ -161,20 +178,35 @@ function validateSelection(selectedIds: string[], items: Item[], rules: Rules): 
   return undefined; // ← à remplacer
 }
 
-// TODO 4 — Complète la suite (au moins 8 cas, 6 catégories).
+// TODO 4 — Complète la suite (8 cas, 6 catégories).
 // Objectif : figer le comportement du validateur dans des tests nommés,
 //            pour qu'une régression se voie dès qu'on modifie le code.
+//            Les 8 cas attendus (rules = RULES sauf mention contraire) :
+//            - [faisable] « sélection conforme » : a1, a2, b1, c1
+//              → aucune violation (fourni) ;
+//            - [infaisable] « domaine C absent » : a1, a2, b1, b2
+//              → minimum de C non atteint (fourni) ;
+//            - [infaisable] « trop d'items du domaine A » : a1, a2, a3, b1
+//              → maximum de A dépassé (et un autre quota manqué) ;
+//            - [données manquantes] « item absent de la banque » : a1, b1, c1
+//              et un id qui n'existe pas, par exemple z9 ;
+//            - [doublons] « même item deux fois » : a1, a1, b1, c1 ;
+//            - [redondance] « minimum 0 sans effet » : a1, a2, b1, c1, avec les
+//              règles de base plus un minimum de 0 sur un domaine D inexistant
+//              → aucune violation : une règle redondante ne gêne pas ;
+//            - [extrême] « sélection vide, longueur 0 » : aucun id,
+//              règles { testLength: 0 } → aucune violation ;
+//            - [extrême] « sélection vide avec quotas » : aucun id, règles de
+//              base → la longueur et les trois minimums sont violés.
 // Entrée   : aucune ; chaque cas est un objet TestCase
 //            { name, category, selectedIds, rules, expected }.
-// Sortie   : le tableau testSuite, avec au moins 8 cas couvrant les
-//            catégories "faisable", "infaisable", "données manquantes",
-//            "doublons", "redondance", "extrême".
+// Sortie   : le tableau testSuite complété avec les 6 cas manquants.
 // Exemple  : { name: "domaine C absent", category: "infaisable",
 //              selectedIds: ["a1", "a2", "b1", "b2"], rules: RULES,
 //              expected: ["quota min C : 0 < 1"] }  (déjà fourni ci-dessous).
-// Attention: `expected` doit être EXACTEMENT la sortie de validateSelection
-//            (mêmes messages, même ordre) ; le programme principal affiche
-//            ✔ ou ✘ pour chaque cas.
+// Attention: `expected` est à écrire toi-même, en appliquant la CONSIGNE 3 à
+//            la main : EXACTEMENT les messages de validateSelection, dans le
+//            même ordre. Le programme principal affiche ✔ ou ✘ pour chaque cas.
 // (Indice 4 en fin de fichier.)
 const testSuite: TestCase[] = [
   {
