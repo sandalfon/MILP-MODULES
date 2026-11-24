@@ -8,7 +8,12 @@
  *
  *  OBJECTIF
  *  Tester si des points (à coordonnées continues) respectent un LP et
- *  trouver l'optimum en évaluant l'objectif aux sommets.
+ *  trouver l'optimum en évaluant l'objectif aux sommets, en quatre étapes :
+ *  - décider si un point respecte toutes les contraintes (TODO 1) ;
+ *  - calculer la valeur de l'objectif en un point (TODO 2) ;
+ *  - dresser le tableau d'évaluation d'une liste de points (TODO 3) ;
+ *  - retenir le meilleur point réalisable, ou null s'il n'y en a
+ *    aucun (TODO 4).
  *
  *  PRÉREQUIS
  *  - Module 1 (réalisabilité, objectif).
@@ -45,8 +50,14 @@ const TEST_POINTS: Coordinates[] = [[1, 1], [3, 1], [2, 3], [-1, 0], [1.5, 2.5]]
 
 // TODO 1 — Le point (x, y) est-il réalisable ?
 // Objectif : dire si le point appartient à la région réalisable, c'est-à-dire
-//            s'il respecte les 5 contraintes : x ≥ 0, y ≥ 0, x + y ≤ 4, x ≤ 2, y ≤ 3.
-// Entrée   : x et y, deux nombres réels (continus), ex. x = 1.5, y = 2.5.
+//            s'il respecte les 5 contraintes :
+//            - x ≥ 0 ;
+//            - y ≥ 0 ;
+//            - x + y ≤ 4 ;
+//            - x ≤ 2 ;
+//            - y ≤ 3.
+// Entrée   : x, un nombre réel (continu), ex. 1.5 ;
+//            y, un nombre réel (continu), ex. 2.5.
 // Sortie   : un booléen, true si TOUTES les contraintes sont respectées.
 // Exemple  : isFeasible(2, 2) → true ; isFeasible(3, 1) → false (viole x ≤ 2).
 // Attention: les bornes x ≥ 0 et y ≥ 0 sont des contraintes comme les autres :
@@ -58,7 +69,8 @@ function isFeasible(x: number, y: number): boolean {
 
 // TODO 2 — Valeur de l'objectif.
 // Objectif : calculer la fonction objectif 3x + 2y que le LP cherche à maximiser.
-// Entrée   : x et y, deux nombres réels, ex. x = 1, y = 3.
+// Entrée   : x, un nombre réel, ex. 1 ;
+//            y, un nombre réel, ex. 3.
 // Sortie   : un nombre, la valeur 3x + 2y.
 // Exemple  : computeObjective(1, 3) → 3·1 + 2·3 = 9.
 function computeObjective(x: number, y: number): number {
@@ -66,8 +78,11 @@ function computeObjective(x: number, y: number): number {
 }
 
 // TODO 3 — Tableau d'évaluation des points.
-// Objectif : produire une ligne par point, avec ses coordonnées, sa réalisabilité
-//            et la valeur de l'objectif, pour comparer les points d'un coup d'œil.
+// Objectif : produire une ligne par point, pour comparer les points d'un coup
+//            d'œil. Chaque ligne contient :
+//            - x et y, les coordonnées du point ;
+//            - isFeasible, sa réalisabilité ;
+//            - objective, la valeur de l'objectif en ce point.
 // Entrée   : points, un tableau de couples [x, y], ex. CANDIDATE_VERTICES.
 // Sortie   : un tableau de PointRow { x, y, isFeasible, objective }, dans l'ordre des points.
 // Exemple  : evaluatePoints([[2, 2], [3, 1]])

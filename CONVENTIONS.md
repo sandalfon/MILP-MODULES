@@ -104,6 +104,16 @@ function totalCost(x: Decision): number {
 
 Les lignes `Objectif`, `Entrée`, `Sortie`, `Exemple` sont obligatoires ; `Attention` (cas particuliers, pièges) quand c'est utile.
 
+Dans `Entrée`, **un paramètre par ligne**, nom en tête, aligné sous le texte ; de même dans `Sortie`, un champ par ligne quand la fonction renvoie un objet à plusieurs champs. Quand l'objectif comporte plusieurs sous-tâches, elles sont listées en puces sous `Objectif`, dans l'ordre où la fonction doit les traiter :
+
+```ts
+// Objectif : valider une sélection et lister toutes ses violations, dans cet ordre :
+//            - id présents plusieurs fois ;
+//            - id absents de la banque.
+// Entrée   : selectedIds, les id retenus, ex. ["a1", "a1", "x"] ;
+//            items, la banque, ex. ITEMS.
+```
+
 ### Indices
 
 Les indices (méthode à employer, fonction JavaScript utile, schéma de code) ne sont **jamais** dans le bloc TODO : ils sont regroupés dans une dernière section `INDICES`, après l'auto-vérification, numérotés comme les TODO, pour que l'élève cherche d'abord seul :

@@ -9,7 +9,13 @@
  *  OBJECTIF
  *  Construire automatiquement un modèle glpk.js à partir d'un tableau
  *  de données, avec des contraintes optionnelles, puis vérifier chaque
- *  solution renvoyée par le solveur avec un code indépendant.
+ *  solution renvoyée par le solveur avec un code indépendant :
+ *  - GÉNÉRER le modèle depuis PRODUCTS et des options (budget,
+ *    cardinalité max, cardinalité exacte) (TODO 1) ;
+ *  - VÉRIFIER une sélection sans utiliser le modèle, en listant toutes
+ *    les règles violées (TODO 2) ;
+ *  - COMPARER les 5 scénarios et lire le modèle au format LP
+ *    (programme principal fourni, QUESTIONS).
  *
  *  PRÉREQUIS
  *  - Exercice 6.1 (structure d'un modèle, statuts, seuil 0,5).
@@ -90,19 +96,27 @@ async function solveModel(model: Model): Promise<Solution | null> {
 // ─── 3. FONCTIONS À COMPLÉTER ───────────────────────────────────
 
 // TODO 1 — Construire le modèle glpk.js à partir des données.
-// Objectif : générer automatiquement le sac à dos MAX Σ value·x sous la
-//            contrainte "budget" Σ cost·x ≤ options.budget, plus les règles de
-//            cardinalité demandées dans options. Aucun coefficient n'est écrit à
-//            la main : le même code doit fonctionner avec 4 produits ou 4 000.
+// Objectif : générer automatiquement le sac à dos à partir des données :
+//            - l'objectif MAX Σ value·x ;
+//            - la contrainte "budget" Σ cost·x ≤ options.budget (toujours) ;
+//            - la contrainte "cardinalite_max" Σ x ≤ maxCardinality, seulement
+//              si l'option est donnée ;
+//            - la contrainte "cardinalite_exacte" Σ x = exactCardinality,
+//              seulement si l'option est donnée ;
+//            - la liste des variables binaires.
+//            Aucun coefficient n'est écrit à la main : le même code doit
+//            fonctionner avec 4 produits ou 4 000.
 // Entrée   : products, la liste des produits, ex. PRODUCTS (A : coût 30, valeur 8…) ;
 //            options, ex. { budget: 100 }, { budget: 100, maxCardinality: 2 }
-//            ou { budget: 100, exactCardinality: 2 }.
-// Sortie   : un Model : objective en maximisation (un terme { name, coef } par
-//            produit, coef = value), subjectTo, binaries (tous les id).
-//            subjectTo contient, dans cet ordre : "budget" (≤ options.budget),
-//            puis "cardinalite_max" (Σ x ≤ maxCardinality) si l'option est
-//            donnée, puis "cardinalite_exacte" (Σ x = exactCardinality) si
-//            l'option est donnée.
+//              ou { budget: 100, exactCardinality: 2 }.
+// Sortie   : un Model :
+//            objective, en maximisation (un terme { name, coef } par produit,
+//              coef = value) ;
+//            subjectTo, qui contient, dans cet ordre : "budget" (≤ options.budget),
+//              puis "cardinalite_max" (Σ x ≤ maxCardinality) si l'option est
+//              donnée, puis "cardinalite_exacte" (Σ x = exactCardinality) si
+//              l'option est donnée ;
+//            binaries, tous les id.
 // Exemple  : buildModel(PRODUCTS, { budget: 100 }) → 1 contrainte, 4 binaires,
 //            coefficients d'objectif [8, 12, 10, 5] ;
 //            buildModel(PRODUCTS, { budget: 100, maxCardinality: 2 }).subjectTo[1]
@@ -120,8 +134,16 @@ function buildModel(products: Product[], options: ModelOptions): Model {
 //            buildModel : on repart des identifiants choisis et des données
 //            brutes, et on recalcule le coût et le nombre de produits. Une
 //            erreur dans le modèle ne peut ainsi pas fausser la vérification.
-// Entrée   : products, ex. PRODUCTS ; selectedIds, les id retenus,
-//            ex. ["A", "B", "D"] ; options, ex. { budget: 100, maxCardinality: 2 }.
+//            Quatre contrôles, dans cet ordre :
+//            - chaque id choisi existe dans products ;
+//            - le coût total recalculé ne dépasse pas options.budget ;
+//            - le nombre de produits choisis ne dépasse pas maxCardinality
+//              (si l'option est définie) ;
+//            - le nombre de produits choisis est égal à exactCardinality
+//              (si l'option est définie).
+// Entrée   : products, ex. PRODUCTS ;
+//            selectedIds, les id retenus, ex. ["A", "B", "D"] ;
+//            options, ex. { budget: 100, maxCardinality: 2 }.
 // Sortie   : un tableau de messages d'erreur (string[]), vide si tout est respecté,
 //            dans l'ordre : produits inconnus, budget, cardinalité max,
 //            cardinalité exacte (textes exacts donnés dans la consigne).

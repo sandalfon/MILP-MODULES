@@ -8,8 +8,15 @@
  *
  *  OBJECTIF
  *  Représenter chaque contrainte linéaire par un objet
- *  { name, coefs, sense, rhs }, l'évaluer de façon générique et générer
- *  automatiquement les contraintes d'un formulaire de questions.
+ *  { name, coefs, sense, rhs } et la traiter de façon générique, en
+ *  quatre étapes :
+ *  - calculer le membre de gauche Σ coef · x d'une contrainte (TODO 1) ;
+ *  - dire si une décision respecte une contrainte, quel que soit son
+ *    sens "<=", ">=" ou "=" (TODO 2) ;
+ *  - générer automatiquement, à partir des données, les contraintes d'un
+ *    formulaire de questions : cardinalité, couvertures, exclusion (TODO 3) ;
+ *  - diagnostiquer une décision en listant toutes les contraintes qu'elle
+ *    viole (TODO 4).
  *
  *  PRÉREQUIS
  *  - Modules 1 et 2 (expression linéaire Σ coef·x).

@@ -7,9 +7,15 @@
  *  Lancer : node modules/module-05-algorithmes-resolution/exercices/ex5-2-branch-and-bound.ts
  *
  *  OBJECTIF
- *  Programmer un Branch and Bound récursif pour le sac à dos, compter
- *  les nœuds explorés et les élagages, et constater qu'il trouve le
- *  même optimum que la force brute en explorant beaucoup moins de cas.
+ *  Programmer un Branch and Bound récursif pour le sac à dos, en deux
+ *  étapes :
+ *  - calculer la relaxation d'un NŒUD de l'arbre, où certaines
+ *    variables sont déjà fixées à 0 ou à 1 (TODO 1) ;
+ *  - explorer l'arbre nœud par nœud : élaguer (infaisabilité, borne,
+ *    intégralité) ou brancher, en comptant les nœuds et les élagages
+ *    (TODO 2).
+ *  Puis constater qu'il trouve le même optimum que la force brute en
+ *  explorant beaucoup moins de cas.
  *
  *  PRÉREQUIS
  *  - Exercice 5.1 : borne fractionnaire (glouton par ratio).
@@ -103,16 +109,23 @@ function solveByBruteForce(items: KnapsackItem[], capacity: number): number {
 // TODO 1 — Relaxation d'un nœud de l'arbre.
 // Objectif : calculer la borne d'un NŒUD du Branch and Bound, c'est-à-dire la
 //            relaxation continue du sac à dos quand certaines variables ont déjà
-//            été fixées à 0 ou à 1 par les branchements (§3 du cours).
+//            été fixées à 0 ou à 1 par les branchements (§3 du cours) :
+//            - tenir compte des objets fixés (à 1 : ils sont pris d'office ;
+//              à 0 : ils sont exclus) ;
+//            - détecter un nœud irréalisable (objets fixés à 1 trop lourds) ;
+//            - sinon, relâcher les objets LIBRES dans la capacité restante ;
+//            - repérer la variable fractionnaire, s'il y en a une.
 // Entrée   : items, les objets { id, cost, value }, ex. PRODUCTS ;
 //            capacity, ex. 100 ;
 //            fixedValues, les variables déjà fixées, ex. { B: 1 } (les autres
-//            sont libres ; {} pour la racine).
+//              sont libres ; {} pour la racine).
 // Sortie   : null si le nœud est IRRÉALISABLE (les objets fixés à 1 dépassent
-//            déjà la capacité) ; sinon un objet Relaxation { bound, x, fractionalId } :
-//            bound la valeur de la relaxation, x la valeur (0, 1 ou fraction) de
-//            CHAQUE objet, fractionalId l'id de la variable strictement entre
-//            0 et 1, ou null si x est entière.
+//              déjà la capacité) ;
+//            sinon un objet Relaxation { bound, x, fractionalId } :
+//            bound, la valeur de la relaxation ;
+//            x, la valeur (0, 1 ou fraction) de CHAQUE objet ;
+//            fractionalId, l'id de la variable strictement entre 0 et 1,
+//              ou null si x est entière.
 // Exemple  : computeNodeBound(PRODUCTS, 100, {}) → bound 25.4, fractionalId "B" ;
 //            { B: 1 } → bound 25, fractionalId "C" ; { B: 0 } → bound 23, fractionalId null ;
 //            { A: 1, B: 1, C: 1 } → null (coût 120 > 100).
@@ -126,16 +139,20 @@ function computeNodeBound(items: KnapsackItem[], capacity: number, fixedValues: 
 
 // TODO 2 — Exploration récursive d'un nœud (fonction exploreNode de branchAndBound).
 // Objectif : traiter un nœud selon les règles du §3 du cours, dans cet ordre :
-//            élagage par infaisabilité, élagage par borne, élagage par
-//            intégralité, sinon branchement sur la variable fractionnaire.
+//            - 2a : élagage par infaisabilité ;
+//            - 2b : élagage par borne ;
+//            - 2c : élagage par intégralité (avec mise à jour de l'incumbent) ;
+//            - 2d : sinon, branchement sur la variable fractionnaire.
 //            Tout le reste de branchAndBound est fourni : complète seulement
 //            les étapes 2a à 2d dans le corps de exploreNode.
 // Entrée   : fixedValues, les variables fixées du nœud courant (exploreNode
-//            commence à la racine {}) ; options useBoundPruning (défaut true :
-//            false désactive l'étape 2b) et exploreOneFirst (défaut false :
-//            true explore l'enfant « 1 » avant l'enfant « 0 »).
-// Sortie   : exploreNode ne renvoie rien : elle met à jour stats (un compteur
-//            par élagage) et search.incumbent (meilleure solution entière connue).
+//              commence à la racine {}) ;
+//            useBoundPruning, option (défaut true : false désactive l'étape 2b) ;
+//            exploreOneFirst, option (défaut false : true explore l'enfant « 1 »
+//              avant l'enfant « 0 »).
+// Sortie   : exploreNode ne renvoie rien : elle met à jour
+//            stats, un compteur par élagage ;
+//            search.incumbent, la meilleure solution entière connue.
 //            branchAndBound renvoie { value, selectedIds, stats }.
 // Exemple  : branchAndBound(PRODUCTS, 100) → value 25, selectedIds ["A", "B", "D"],
 //            stats { nodes: 5, prunedByInfeasibility: 0, prunedByBound: 1, prunedByIntegrality: 2 } ;

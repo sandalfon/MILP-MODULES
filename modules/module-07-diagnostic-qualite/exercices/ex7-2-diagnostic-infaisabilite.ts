@@ -8,8 +8,16 @@
  *
  *  OBJECTIF
  *  Provoquer volontairement une infaisabilité, puis la diagnostiquer
- *  de deux façons : par retrait progressif des familles de contraintes,
- *  puis par une relaxation élastique qui mesure la violation minimale.
+ *  de deux façons, en quatre étapes :
+ *  - écrire les contraintes du modèle sous forme de données, rangées en
+ *    trois familles nommées : longueur, quotas, exclusions (TODO 1) ;
+ *  - assembler le modèle en laissant de côté les familles demandées, et
+ *    constater que le modèle complet est infaisable (TODO 2) ;
+ *  - diagnostiquer par RETRAIT PROGRESSIF : retirer une famille (puis une
+ *    contrainte) à la fois et noter si le modèle redevient faisable (TODO 3) ;
+ *  - diagnostiquer par RELAXATION ÉLASTIQUE : autoriser chaque contrainte
+ *    à être violée, moyennant une pénalité, pour mesurer la violation
+ *    minimale et désigner la contrainte à assouplir (TODO 4).
  *
  *  PRÉREQUIS
  *  - Module 6 : modèle glpk.js, statuts (GLP_NOFEAS = 4, GLP_OPT = 5).
@@ -119,11 +127,17 @@ function readNonZeroSlacks(solverOutput: SolverOutput): SlackValue[] {
 
 // TODO 1 — Range les contraintes par famille.
 // Objectif : écrire les contraintes du modèle sous forme de données glpk.js,
-//            rangées en familles nommées (longueur, quotas, exclusions),
-//            pour pouvoir ensuite retirer une famille entière d'un coup.
+//            rangées en familles nommées, pour pouvoir ensuite retirer une
+//            famille entière d'un coup. Trois familles à produire :
+//            - testLength : une seule contrainte "longueur", le nombre
+//              total d'items retenus est exactement la longueur du test ;
+//            - quotas : une contrainte `quota_${domain}` par domaine des
+//              minimums, au moins le minimum d'items de ce domaine ;
+//            - exclusions : une contrainte `exclusion_${idA}_${idB}` par
+//              paire exclue, au plus un des deux items.
 // Entrée   : items, la banque (ITEMS : a1..a3 en A, b1..b3 en B, c1..c2 en C, d1 en D) ;
 //            rules, ex. RULES = { testLength: 4, minimums: { A: 2, B: 2, C: 1 },
-//            exclusions: [["a1", "b1"]] }.
+//              exclusions: [["a1", "b1"]] }.
 // Sortie   : un objet AssemblyFamilies { testLength, quotas, exclusions },
 //            chaque champ étant un tableau de GlpkConstraint { name, vars, bnds } :
 //              testLength : Σ_i x_i = 4 (une contrainte nommée "longueur") ;
@@ -143,11 +157,19 @@ function buildFamilies(items: Item[], rules: Rules): AssemblyFamilies {
 // TODO 2 — Modèle MAX Σ score·x, toutes variables binaires.
 // Objectif : assembler le modèle glpk.js à partir des familles conservées ;
 //            retirer une famille revient simplement à ne pas la concaténer.
-// Entrée   : families, ex. buildFamilies(ITEMS, RULES) ; items, ex. ITEMS ;
+//            Trois parties à remplir :
+//            - l'objectif : MAXIMISER le score total des items retenus ;
+//            - les contraintes : celles de toutes les familles, sauf celles
+//              dont le nom figure dans familiesToRemove ;
+//            - les variables binaires : une par item (son id).
+// Entrée   : families, ex. buildFamilies(ITEMS, RULES) ;
+//            items, ex. ITEMS ;
 //            familiesToRemove, les noms de familles à exclure, ex. ["quotas"]
-//            (par défaut [] : modèle complet).
-// Sortie   : un Model : objectif MAX Σ score_i · x_i, subjectTo = les
-//            contraintes des familles conservées, binaries = les id des items.
+//              (par défaut [] : modèle complet).
+// Sortie   : un Model :
+//              objectif MAX Σ score_i · x_i ;
+//              subjectTo = les contraintes des familles conservées ;
+//              binaries = les id des items.
 // Exemple  : buildModel(buildFamilies(ITEMS, RULES), ITEMS, ["quotas"]).subjectTo.length
 //              → 2 (longueur + exclusion) ;
 //            le modèle complet (sans retrait) est infaisable : statut GLP_NOFEAS.
@@ -159,9 +181,14 @@ function buildModel(families: Families, items: Item[], familiesToRemove: string[
 // TODO 3 — Retrait progressif, une famille à la fois.
 // Objectif : retirer chaque famille à tour de rôle et noter si le modèle
 //            redevient faisable : une famille dont le retrait rend le
-//            modèle faisable participe au conflit.
+//            modèle faisable participe au conflit. Pour chaque famille,
+//            dans l'ordre des clés de families :
+//            - construire le modèle SANS cette seule famille (TODO 2) ;
+//            - le résoudre, en traitant le cas où il n'y a rien à résoudre ;
+//            - ajouter une ligne { family, isFeasibleWithout } au résultat.
 // Entrée   : families, ex. buildFamilies(ITEMS, RULES) (ou
-//            splitFamilies(...) pour une famille par contrainte) ; items, ex. ITEMS.
+//              splitFamilies(...) pour une famille par contrainte) ;
+//            items, ex. ITEMS.
 // Sortie   : une promesse de tableau DiagnosticRow, une ligne
 //            { family, isFeasibleWithout } par famille, dans l'ordre des clés ;
 //            « faisable » signifie statut glpk.GLP_OPT.
@@ -183,10 +210,18 @@ async function diagnoseByFamily(families: Families, items: Item[]): Promise<Diag
 //            variables d'écart ≥ 0, et MINIMISER la violation pondérée
 //            Σ weights[famille] · écart : la valeur optimale mesure la
 //            violation minimale, les écarts non nuls désignent les
-//            contraintes à assouplir.
-// Entrée   : families, ex. buildFamilies(ITEMS, RULES) ; items, ex. ITEMS ;
+//            contraintes à assouplir. Pour chaque contrainte de chaque famille :
+//            - ajouter à une COPIE de ses termes un ou deux écarts, selon
+//              son type GLP_LO, GLP_UP ou GLP_FX (noms et signes :
+//              CONSIGNE 4) ;
+//            - ajouter chacun de ces écarts à l'objectif, avec le poids de
+//              la famille de la contrainte ;
+//            puis assembler le modèle : objectif en MINIMISATION, contraintes
+//            ainsi complétées, variables binaires = les seuls id des items.
+// Entrée   : families, ex. buildFamilies(ITEMS, RULES) ;
+//            items, ex. ITEMS ;
 //            weights, le poids de chaque famille,
-//            ex. { testLength: 10, quotas: 1, exclusions: 10 }.
+//              ex. { testLength: 10, quotas: 1, exclusions: 10 }.
 // Sortie   : un Model en minimisation (toujours faisable) dont l'objectif ne
 //            contient que les écarts (noms et signes : CONSIGNE 4).
 // Exemple  : résolu avec les poids ci-dessus → z = 1, et un seul écart non
