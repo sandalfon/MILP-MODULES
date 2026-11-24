@@ -47,23 +47,14 @@
 
 import GLPK from "glpk.js/node";
 import type { LP, Result } from "glpk.js/node";
-import {
-  check,
-  checkAsync,
-  printSummary,
-  printTitle,
-} from "../../../lib/verif.ts";
+import { check, checkAsync, printSummary, printTitle } from "../../../lib/verif.ts";
 
 const glpk = await GLPK();
 
 // ─── 1. DONNÉES (fournies, ne pas modifier) ─────────────────────
 type Product = { id: string; cost: number; value: number };
 // Options du modèle : budget obligatoire, cardinalités facultatives.
-type ModelOptions = {
-  budget: number;
-  maxCardinality?: number;
-  exactCardinality?: number;
-};
+type ModelOptions = { budget: number; maxCardinality?: number; exactCardinality?: number };
 // Modèle glpk.js dont la liste des binaires est toujours renseignée.
 type Model = LP & { binaries: string[] };
 type GlpkConstraint = LP["subjectTo"][number];
@@ -84,7 +75,7 @@ const PRODUCTS: Product[] = [
   { id: "A", cost: 30, value: 8 },
   { id: "B", cost: 50, value: 12 },
   { id: "C", cost: 40, value: 10 },
-  { id: "D", cost: 20, value: 5 },
+  { id: "D", cost: 20, value: 5 }
 ];
 const BUDGET = 100;
 
@@ -95,18 +86,11 @@ const BUDGET = 100;
 // fait planter le module WebAssembly (« Aborted() »).
 async function solveModel(model: Model): Promise<Solution | null> {
   if (!model?.objective?.vars?.length) return null;
-  const solverOutput: SolverOutput = await glpk.solve(model, {
-    msglev: glpk.GLP_MSG_OFF,
-    presol: true,
-  });
+  const solverOutput: SolverOutput = await glpk.solve(model, { msglev: glpk.GLP_MSG_OFF, presol: true });
   const selectedIds = Object.entries(solverOutput.result.vars)
     .filter(([, variableValue]) => variableValue > 0.5)
     .map(([id]) => id);
-  return {
-    status: solverOutput.result.status,
-    value: solverOutput.result.z,
-    selectedIds,
-  };
+  return { status: solverOutput.result.status, value: solverOutput.result.z, selectedIds };
 }
 
 // ─── 3. FONCTIONS À COMPLÉTER ───────────────────────────────────
@@ -141,56 +125,8 @@ async function solveModel(model: Model): Promise<Solution | null> {
 // Attention: 0 est une valeur d'option valide (« aucun produit ») : une option
 //            qui vaut 0 n'est pas une option absente.
 // (Indice 1 en fin de fichier.)
-//
-// //   products.map(product => ({ name: product.id, coef: product.cost })) pour le budget,
-//   et coef: 1 pour les cardinalités. Structure possible :
-//     const subjectTo: GlpkConstraint[] = [ { name: "budget", vars: …, bnds: { type: glpk.GLP_UP, … } } ];
-//     const unitTerms = products.map(product => ({ name: product.id, coef: 1 }));
-//     if (options.maxCardinality !== undefined)   subjectTo.push({ name: "cardinalite_max", … GLP_UP … });
-//     if (options.exactCardinality !== undefined) subjectTo.push({ name: "cardinalite_exacte", … GLP_FX … });
-//     return { name: "sac_a_dos_genere", objective: { direction, name, vars }, subjectTo, binaries };
-//   Teste `!== undefined` et non `if (options.maxCardinality)`, sinon 0 serait ignoré.
 function buildModel(products: Product[], options: ModelOptions): Model {
-  const subjectTo: GlpkConstraint[] = [
-    {
-      name: "budget",
-      vars: products.map((product) => ({
-        name: product.id,
-        coef: product.cost,
-      })),
-      bnds: { type: glpk.GLP_UP, lb: 0, ub: options.budget },
-    },
-  ];
-  const unitTerms = products.map((product) => ({ name: product.id, coef: 1 }));
-  if (options.maxCardinality !== undefined)
-    subjectTo.push({
-      name: "cardinalite_max",
-      vars: unitTerms,
-      bnds: { type: glpk.GLP_UP, lb: 0, ub: options.maxCardinality },
-    });
-  if (options.exactCardinality !== undefined)
-    subjectTo.push({
-      name: "exact_max",
-      vars: unitTerms,
-      bnds: {
-        type: glpk.GLP_FX,
-        lb: options.exactCardinality,
-        ub: options.exactCardinality,
-      },
-    });
-  return {
-    name: "sac_a_dos_genere",
-    objective: {
-      direction: glpk.GLP_MAX,
-      name: "valeur",
-      vars: products.map((product) => ({
-        name: product.id,
-        coef: product.value,
-      })),
-    },
-    subjectTo,
-    binaries: products.map((product) => product.id),
-  }; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 2 — Vérificateur indépendant d'une sélection.
@@ -221,39 +157,9 @@ function buildModel(products: Product[], options: ModelOptions): Model {
 //            nombre de produits choisis ; une règle de cardinalité n'est testée
 //            que si son option est définie.
 // (Indice 2 en fin de fichier.)
-// // Indice 2 (validateSolution) — étapes :
-//   - un Map id → produit pour retrouver les données :
-//     new Map(products.map(product => [product.id, product])) ;
-//   - pour chaque id choisi : inconnu → erreur, sinon on ajoute son coût ;
-//   - comparer le coût total au budget, puis selectedIds.length à
-//     maxCardinality / exactCardinality (seulement si ces options sont définies).
-
-function validateSolution(
-  products: Product[],
-  selectedIds: string[],
-  options: ModelOptions,
-): string[] {
+function validateSolution(products: Product[], selectedIds: string[], options: ModelOptions): string[] {
   const errors: string[] = [];
-  const productById = new Map(products.map(product => [product.id, product]));
-let totalCost = 0
-  for (const id of selectedIds) {
-    const product = productById.get(id)
-    if (!product) {
-      errors.push(`produit inconnu : ${id}`);
-      continue;
-    }
-    totalCost+=product.cost
-  }
-  const selectedCount = selectedIds.length;
-  if (totalCost > options.budget) {
-    errors.push(`budget dépassé : ${totalCost} > ${options.budget}`);
-  }
-  if (options.maxCardinality !== undefined && selectedCount > options.maxCardinality) {
-    errors.push(`cardinalité max dépassée : ${selectedCount} > ${options.maxCardinality}`);
-  }
-  if (options.exactCardinality !== undefined && selectedCount !== options.exactCardinality) {
-    errors.push(`cardinalité exacte violée : ${selectedCount} ≠ ${options.exactCardinality}`);
-  }
+  // ... à compléter
   return errors;
 }
 
@@ -265,7 +171,7 @@ const SCENARIOS: Scenario[] = [
   { name: "au plus 2", options: { budget: BUDGET, maxCardinality: 2 } },
   { name: "exactement 2", options: { budget: BUDGET, exactCardinality: 2 } },
   { name: "exactement 3", options: { budget: BUDGET, exactCardinality: 3 } },
-  { name: "exactement 4", options: { budget: BUDGET, exactCardinality: 4 } },
+  { name: "exactement 4", options: { budget: BUDGET, exactCardinality: 4 } }
 ];
 
 const rows: TableRow[] = [];
@@ -279,24 +185,18 @@ for (const scenario of SCENARIOS) {
     selectedIds: isOptimal ? solution.selectedIds.join(", ") : "—",
     // On ne vérifie que si une solution existe vraiment.
     verification: isOptimal
-      ? validateSolution(PRODUCTS, solution.selectedIds, scenario.options).join(
-          " ; ",
-        ) || "OK"
-      : "pas de solution",
+      ? (validateSolution(PRODUCTS, solution.selectedIds, scenario.options).join(" ; ") || "OK")
+      : "pas de solution"
   });
 }
 console.table(rows);
-console.log(
-  `(statuts : ${glpk.GLP_OPT} = optimal, ${glpk.GLP_NOFEAS} = infaisable)`,
-);
+console.log(`(statuts : ${glpk.GLP_OPT} = optimal, ${glpk.GLP_NOFEAS} = infaisable)`);
 
 printTitle("Modèle « au plus 2 » au format CPLEX LP (glpk.write)");
 // Garde défensive : avec « glpk.js/node » 5.0, glpk.write existe toujours (test toujours vrai).
 if (typeof glpk.write === "function") {
   try {
-    console.log(
-      glpk.write(buildModel(PRODUCTS, { budget: BUDGET, maxCardinality: 2 })),
-    );
+    console.log(glpk.write(buildModel(PRODUCTS, { budget: BUDGET, maxCardinality: 2 })));
   } catch (error) {
     console.log("Modèle non affichable :", (error as Error).message);
   }
@@ -310,119 +210,48 @@ if (typeof glpk.write === "function") {
 
 // ─── 5. AUTO-VÉRIFICATION (ne pas modifier) ─────────────────────
 printTitle("Auto-vérification");
-check(
-  "modèle de base : 1 contrainte, 4 binaires",
-  () => {
-    const model = buildModel(PRODUCTS, { budget: BUDGET });
-    return [model.subjectTo.length, model.binaries.length];
-  },
-  [1, 4],
-);
-check(
-  "coefficients de l'objectif tirés des données",
-  () =>
-    buildModel(PRODUCTS, { budget: BUDGET }).objective.vars.map(
-      (term) => term.coef,
-    ),
-  [8, 12, 10, 5],
-);
-check(
-  "maxCardinality 2 → contrainte GLP_UP ub 2",
-  () => {
-    const constraint = buildModel(PRODUCTS, {
-      budget: BUDGET,
-      maxCardinality: 2,
-    }).subjectTo[1];
-    return [
-      constraint.bnds.type,
-      constraint.bnds.ub,
-      constraint.vars.every((term) => term.coef === 1),
-    ];
-  },
-  [glpk.GLP_UP, 2, true],
-);
-check(
-  "exactCardinality 2 → contrainte GLP_FX lb = ub = 2",
-  () => {
-    const constraint = buildModel(PRODUCTS, {
-      budget: BUDGET,
-      exactCardinality: 2,
-    }).subjectTo[1];
-    return [constraint.bnds.type, constraint.bnds.lb, constraint.bnds.ub];
-  },
-  [glpk.GLP_FX, 2, 2],
-);
-check(
-  "vérif : (A,B,C) dépasse le budget",
-  () => validateSolution(PRODUCTS, ["A", "B", "C"], { budget: BUDGET }),
-  ["budget dépassé : 120 > 100"],
-);
-check(
-  "vérif : (A,B,D) avec au plus 2",
-  () =>
-    validateSolution(PRODUCTS, ["A", "B", "D"], {
-      budget: BUDGET,
-      maxCardinality: 2,
-    }),
-  ["cardinalité max dépassée : 3 > 2"],
-);
-check(
-  "vérif : produit inconnu et cardinalité exacte",
-  () =>
-    validateSolution(PRODUCTS, ["Z"], { budget: BUDGET, exactCardinality: 2 }),
-  ["produit inconnu : Z", "cardinalité exacte violée : 1 ≠ 2"],
-);
+check("modèle de base : 1 contrainte, 4 binaires", () => {
+  const model = buildModel(PRODUCTS, { budget: BUDGET });
+  return [model.subjectTo.length, model.binaries.length];
+}, [1, 4]);
+check("coefficients de l'objectif tirés des données", () =>
+  buildModel(PRODUCTS, { budget: BUDGET }).objective.vars.map(term => term.coef), [8, 12, 10, 5]);
+check("maxCardinality 2 → contrainte GLP_UP ub 2", () => {
+  const constraint = buildModel(PRODUCTS, { budget: BUDGET, maxCardinality: 2 }).subjectTo[1];
+  return [constraint.bnds.type, constraint.bnds.ub, constraint.vars.every(term => term.coef === 1)];
+}, [glpk.GLP_UP, 2, true]);
+check("exactCardinality 2 → contrainte GLP_FX lb = ub = 2", () => {
+  const constraint = buildModel(PRODUCTS, { budget: BUDGET, exactCardinality: 2 }).subjectTo[1];
+  return [constraint.bnds.type, constraint.bnds.lb, constraint.bnds.ub];
+}, [glpk.GLP_FX, 2, 2]);
+check("vérif : (A,B,C) dépasse le budget", () =>
+  validateSolution(PRODUCTS, ["A", "B", "C"], { budget: BUDGET }), ["budget dépassé : 120 > 100"]);
+check("vérif : (A,B,D) avec au plus 2", () =>
+  validateSolution(PRODUCTS, ["A", "B", "D"], { budget: BUDGET, maxCardinality: 2 }),
+  ["cardinalité max dépassée : 3 > 2"]);
+check("vérif : produit inconnu et cardinalité exacte", () =>
+  validateSolution(PRODUCTS, ["Z"], { budget: BUDGET, exactCardinality: 2 }),
+  ["produit inconnu : Z", "cardinalité exacte violée : 1 ≠ 2"]);
 // Construit, résout et renvoie { status, value, selectedIds } ; échoue (✘) tant que le modèle est incomplet.
 async function solveWithOptions(options: ModelOptions): Promise<Solution> {
   const solution = await solveModel(buildModel(PRODUCTS, options));
-  if (!solution)
-    throw new Error(
-      "modèle incomplet : buildModel ne renvoie pas encore de variables",
-    );
+  if (!solution) throw new Error("modèle incomplet : buildModel ne renvoie pas encore de variables");
   return solution;
 }
-await checkAsync(
-  "budget seul : z = 25",
-  async () => (await solveWithOptions({ budget: BUDGET })).value,
-  25,
-);
-await checkAsync(
-  "au plus 2 : (B, C), z = 22",
-  async () => {
-    const solution = await solveWithOptions({
-      budget: BUDGET,
-      maxCardinality: 2,
-    });
-    return [solution.selectedIds, solution.value];
-  },
-  [["B", "C"], 22],
-);
-await checkAsync(
-  "exactement 3 : z = 25",
-  async () =>
-    (await solveWithOptions({ budget: BUDGET, exactCardinality: 3 })).value,
-  25,
-);
-await checkAsync(
-  "exactement 4 : infaisable",
-  async () =>
-    (await solveWithOptions({ budget: BUDGET, exactCardinality: 4 })).status,
-  glpk.GLP_NOFEAS,
-);
-await checkAsync(
-  "solution optimale « au plus 2 » validée",
-  async () => {
-    const solution = await solveWithOptions({
-      budget: BUDGET,
-      maxCardinality: 2,
-    });
-    return validateSolution(PRODUCTS, solution.selectedIds, {
-      budget: BUDGET,
-      maxCardinality: 2,
-    });
-  },
-  [],
-);
+await checkAsync("budget seul : z = 25",
+  async () => (await solveWithOptions({ budget: BUDGET })).value, 25);
+await checkAsync("au plus 2 : (B, C), z = 22", async () => {
+  const solution = await solveWithOptions({ budget: BUDGET, maxCardinality: 2 });
+  return [solution.selectedIds, solution.value];
+}, [["B", "C"], 22]);
+await checkAsync("exactement 3 : z = 25",
+  async () => (await solveWithOptions({ budget: BUDGET, exactCardinality: 3 })).value, 25);
+await checkAsync("exactement 4 : infaisable",
+  async () => (await solveWithOptions({ budget: BUDGET, exactCardinality: 4 })).status, glpk.GLP_NOFEAS);
+await checkAsync("solution optimale « au plus 2 » validée", async () => {
+  const solution = await solveWithOptions({ budget: BUDGET, maxCardinality: 2 });
+  return validateSolution(PRODUCTS, solution.selectedIds, { budget: BUDGET, maxCardinality: 2 });
+}, []);
 printSummary();
 
 // ─── INDICES (à lire seulement si tu bloques) ───────────────────

@@ -83,18 +83,16 @@ function buildModel(): Model {
     objective: {
       direction: glpk.GLP_MAX,
       name: "valeur",
-      vars: [{ name: "A", coef: 8 }, { name: "B", coef: 12 },
-      { name: "C", coef: 10 }, { name: "D", coef: 5 }] // ← à compléter
+      vars: [] // ← à compléter
     },
     subjectTo: [
       {
         name: "budget",
-        vars: [   { name: "A", coef: 30 }, { name: "B", coef: 50 },
-        { name: "C", coef: 40 }, { name: "D", coef: 20 }],     // ← à compléter
-        bnds: { type: glpk.GLP_UP, lb: 0, ub: 100 }  // ← à compléter
+        vars: [],     // ← à compléter
+        bnds: undefined // ← à compléter
       }
     ],
-    binaries: ["A", "B", "C", "D"] // ← à compléter
+    binaries: [] // ← à compléter
   };
 }
 
@@ -115,16 +113,7 @@ function buildModel(): Model {
 // Attention: un code non prévu, ex. 42, renvoie `inconnu (${status})`, soit "inconnu (42)".
 // (Indice 2 en fin de fichier.)
 function statusToText(status: number): string {
-  const labels: Record<number, string> = {
-    [glpk.GLP_OPT]: "optimal",
-    [glpk.GLP_FEAS]: "réalisable (optimalité non prouvée)",
-    [glpk.GLP_NOFEAS]: "infaisable",
-    [glpk.GLP_INFEAS]: "irréalisable",
-    [glpk.GLP_UNBND]: "non borné",
-    [glpk.GLP_UNDEF]: "indéfini"
-  };
-  return labels[status] ?? `inconnu (${status})`;
- // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 3 — Lire les variables binaires choisies.
@@ -139,7 +128,7 @@ function statusToText(status: number): string {
 //            de vars (ici D) vaut 0.
 // (Indice 3 en fin de fichier.)
 function readSelectedIds(vars: VariableValues): string[] {
-  return IDS.filter(id => (vars[id] ?? 0) > 0.5); // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // ─── 3. PROGRAMME PRINCIPAL (fourni) ────────────────────────────
