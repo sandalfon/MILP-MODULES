@@ -8,7 +8,11 @@
  *
  *  OBJECTIF
  *  Écrire ton premier modèle MILP pour un vrai solveur, le résoudre,
- *  puis lire correctement le statut et les variables.
+ *  puis lire correctement le statut et les variables, en trois étapes :
+ *  - écrire à la main le modèle glpk.js du sac à dos du module 1 (TODO 1) ;
+ *  - traduire le statut numérique renvoyé par GLPK en texte lisible
+ *    (TODO 2) ;
+ *  - lire dans la réponse du solveur les produits retenus (TODO 3).
  *
  *  PRÉREQUIS
  *  - Module 1 : formulation du sac à dos
@@ -54,7 +58,11 @@ type VariableValues = Record<string, number>;
 // Objectif : traduire LIGNE À LIGNE la formulation papier du module 1 en
 //            modèle glpk.js : MAX 8A + 12B + 10C + 5D
 //            s.c. 30A + 50B + 40C + 20D ≤ 100, A, B, C, D ∈ {0, 1}.
-//            Complète les quatre champs marqués « ← à compléter ».
+//            Quatre champs marqués « ← à compléter » :
+//            - objective.vars : les termes de l'objectif (valeurs) ;
+//            - subjectTo[0].vars : les termes du budget (coûts) ;
+//            - subjectTo[0].bnds : les bornes qui expriment « ≤ 100 » ;
+//            - binaries : les noms des variables binaires.
 // Entrée   : aucune (les coefficients sont ceux de la ligne DONNÉES :
 //            A : coût 30, valeur 8 ; B : 50, 12 ; C : 40, 10 ; D : 20, 5).
 // Sortie   : un Model dont :

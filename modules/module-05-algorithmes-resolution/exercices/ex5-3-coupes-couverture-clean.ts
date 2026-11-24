@@ -8,9 +8,13 @@
  *
  *  OBJECTIF
  *  Construire des coupes de couverture pour la contrainte de sac à dos
- *  30A + 50B + 40C + 20D ≤ 100, vérifier qu'elles sont VALIDES (aucune
- *  solution entière réalisable n'est perdue) et qu'elles COUPENT la
- *  solution fractionnaire de la racine du Branch and Bound.
+ *  30A + 50B + 40C + 20D ≤ 100, en trois étapes :
+ *  - TROUVER les couvertures, puis les couvertures minimales, qui
+ *    définissent les coupes (TODO 1 à 4) ;
+ *  - vérifier que ces coupes sont VALIDES : aucune solution entière
+ *    réalisable n'est perdue (TODO 5 et 6) ;
+ *  - vérifier qu'elles COUPENT la solution fractionnaire de la racine
+ *    du Branch and Bound (TODO 7).
  *
  *  PRÉREQUIS
  *  - Exercices 5.1 et 5.2 : relaxation, point (A=1, B=0,2, C=1, D=1).
@@ -96,8 +100,10 @@ function isCover(idSet: IdSet): boolean {
 
 // TODO 3 — Couverture minimale.
 // Objectif : reconnaître les couvertures MINIMALES, qui donnent les coupes
-//            les plus fortes : l'ensemble est une couverture, et retirer
-//            n'importe lequel de ses objets le fait repasser sous la capacité.
+//            les plus fortes. Deux conditions à réunir :
+//            - l'ensemble est une couverture ;
+//            - retirer n'importe lequel de ses objets le fait repasser
+//              sous la capacité (l'ensemble restant n'est plus une couverture).
 // Entrée   : idSet, ex. ["A", "B", "C"].
 // Sortie   : true si idSet est une couverture minimale, false sinon.
 // Exemple  : isMinimalCover(["A", "B", "C"]) → true (retirer A → 90, B → 70, C → 80) ;
@@ -151,7 +157,9 @@ function isValidCut(cover: IdSet): boolean {
 
 // TODO 7 — Coupes violées par un point.
 // Objectif : trouver les coupes de couverture minimale qui COUPENT le point x
-//            (la solution fractionnaire de la racine du Branch and Bound).
+//            (la solution fractionnaire de la racine du Branch and Bound) :
+//            - partir de toutes les couvertures minimales ;
+//            - ne garder que celles dont la coupe est violée par x.
 // Entrée   : x, ex. RELAXED_DECISION = { A: 1, B: 0.2, C: 1, D: 1 }.
 // Sortie   : les couvertures minimales (IdSet[]) dont la coupe est violée par x.
 // Exemple  : findViolatedCuts(RELAXED_DECISION) → [["A", "B", "C"], ["B", "C", "D"]] ;

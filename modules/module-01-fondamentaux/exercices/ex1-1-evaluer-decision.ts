@@ -7,8 +7,12 @@
  *  Lancer : node modules/module-01-fondamentaux/exercices/ex1-1-evaluer-decision.ts
  *
  *  OBJECTIF
- *  Savoir calculer, pour une décision donnée, son coût, sa valeur
- *  (fonction objectif) et dire si elle est réalisable.
+ *  Savoir évaluer une décision donnée, en cinq petites fonctions :
+ *  - calculer son coût, le membre de gauche du budget (TODO 1) ;
+ *  - calculer sa valeur, la fonction objectif (TODO 2) ;
+ *  - vérifier que chaque variable vaut 0 ou 1 (TODO 3) ;
+ *  - dire si elle est réalisable : domaine ET budget (TODO 4) ;
+ *  - lister les produits qu'elle retient, pour l'affichage (TODO 5).
  *
  *  PRÉREQUIS
  *  - TypeScript : tableaux d'objets typés (Product[]), Array.prototype.reduce /
@@ -90,7 +94,9 @@ function satisfiesDomain(x: Decision): boolean {
 
 // TODO 4 — Réalisabilité d'une décision.
 // Objectif : une décision est réalisable si elle respecte TOUTES les
-//            contraintes : le domaine binaire ET le budget (coût ≤ BUDGET).
+//            contraintes, soit deux contrôles :
+//            - le domaine binaire : chaque variable vaut 0 ou 1 ;
+//            - le budget : coût total ≤ BUDGET.
 // Entrée   : x, une décision, ex. { A: 1, B: 1, C: 1, D: 0 }.
 // Sortie   : true si la décision est réalisable, false sinon.
 // Exemple  : isFeasible({ A: 1, B: 1, C: 0, D: 1 }) → true (coût 100 ≤ 100) ;

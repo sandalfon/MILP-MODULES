@@ -9,7 +9,14 @@
  *  OBJECTIF
  *  Écrire un vérificateur qui prouve qu'une formulation linéaire
  *  interdit EXACTEMENT les cas interdits par une règle logique, puis
- *  traduire six règles et prendre en défaut deux formulations fausses.
+ *  s'en servir :
+ *  - comparer, affectation par affectation, la règle logique et le
+ *    modèle linéaire, et lister leurs désaccords (TODO 1) ;
+ *  - traduire six règles logiques en contraintes linéaires : implication,
+ *    exclusion, ou, ou exclusif, équivalence, ET (TODO 2) ;
+ *  - prendre en défaut deux formulations fausses fournies, le ET
+ *    incomplet et l'implication à l'envers (ton vérificateur du TODO 1
+ *    suffit, rien de plus à écrire).
  *
  *  PRÉREQUIS
  *  - Exercices 3.1 et 3.2 (contraintes-données, satisfiesConstraint).
@@ -74,10 +81,12 @@ const makeConstraint = (coefs: Coefs, sense: Sense, rhs: number): Constraint => 
 // ─── 3. FONCTIONS À COMPLÉTER ───────────────────────────────────
 
 // TODO 1 — Désaccords entre une règle logique et sa formulation.
-// Objectif : tester une formulation par table de vérité (cours §5) : pour
-//            CHAQUE affectation 0/1 des variables, comparer ce que permet la
-//            règle logique et ce que permet le modèle (toutes les
-//            contraintes respectées), et noter chaque cas où ils diffèrent.
+// Objectif : tester une formulation par table de vérité (cours §5). Pour
+//            CHAQUE affectation 0/1 des variables :
+//            - déterminer si la règle logique la permet ;
+//            - déterminer si le modèle la permet (toutes les contraintes
+//              respectées) ;
+//            - s'ils ne sont pas d'accord, noter un désaccord et son type.
 // Entrée   : rule, la règle logique, ex. FORMULATIONS.implication.rule ;
 //            constraints, sa traduction linéaire, ex. [makeConstraint({ A: 1, B: -1 }, "<=", 0)] ;
 //            variables, les variables concernées, ex. ["A", "B"].
@@ -103,6 +112,13 @@ function findDisagreements(rule: LogicalRule, constraints: Constraint[], variabl
 // Objectif : pour chaque cas de FORMULATIONS, écrire dans constraints la
 //            ou les contraintes linéaires qui interdisent EXACTEMENT les
 //            affectations que rule interdit (catalogue du cours, §3).
+//            Les 6 cas à remplir :
+//            - implication : « B exige A », variables A, B ;
+//            - exclusion : « pas A et B ensemble », variables A, B ;
+//            - or : « A ou B (au moins un) », variables A, B ;
+//            - xor : « exactement un de A, B », variables A, B ;
+//            - equivalence : « A ⇔ B », variables A, B ;
+//            - and : « z = x ET y », variables x, y, z.
 // Entrée   : pour chaque cas, label, variables et rule (déjà fournis),
 //            ex. implication : variables ["A", "B"], rule « B exige A ».
 // Sortie   : constraints, un tableau de contraintes créées avec

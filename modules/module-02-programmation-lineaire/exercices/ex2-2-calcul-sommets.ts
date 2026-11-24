@@ -9,7 +9,13 @@
  *  OBJECTIF
  *  Calculer automatiquement les sommets d'un LP à deux variables à
  *  partir de ses contraintes, puis observer le déplacement de l'optimum
- *  quand on modifie une contrainte.
+ *  quand on modifie une contrainte, en cinq étapes :
+ *  - calculer le point où se coupent deux droites frontières (TODO 1) ;
+ *  - tester si un point respecte toutes les contraintes (TODO 2) ;
+ *  - lister les contraintes saturées en un point (TODO 3) ;
+ *  - en déduire les sommets de la région réalisable (TODO 4) ;
+ *  - choisir le meilleur sommet pour l'objectif, puis comparer avec la
+ *    variante x ≤ 1.5 (TODO 5 et QUESTIONS).
  *
  *  PRÉREQUIS
  *  - Exercice 2.1.
@@ -75,8 +81,9 @@ const replaceRhs = (constraints: Constraint[], name: string, rhs: number): Const
 // TODO 1 — Intersection de deux droites frontières.
 // Objectif : trouver le point où les droites a1·x + b1·y = c1 et a2·x + b2·y = c2
 //            se coupent, par la règle de Cramer (cours §4) : c'est un sommet candidat.
-// Entrée   : constraint1 et constraint2, deux contraintes { name, coefs: { x: a, y: b }, rhs: c },
-//            ex. CONSTRAINTS[0] (x + y ≤ 4) et CONSTRAINTS[1] (x ≤ 2).
+// Entrée   : constraint1, une contrainte { name, coefs: { x: a, y: b }, rhs: c },
+//              ex. CONSTRAINTS[0] (x + y ≤ 4) ;
+//            constraint2, une contrainte de même forme, ex. CONSTRAINTS[1] (x ≤ 2).
 // Sortie   : un Point { x, y } aux coordonnées arrondies avec roundValue,
 //            ou null si les droites sont parallèles (|det| < TOLERANCE).
 // Exemple  : computeIntersection(CONSTRAINTS[0], CONSTRAINTS[1]) → { x: 2, y: 2 } ;
@@ -95,7 +102,8 @@ function computeIntersection(constraint1: Constraint, constraint2: Constraint): 
 // TODO 2 — Le point respecte-t-il toutes les contraintes ?
 // Objectif : tester la réalisabilité d'un point : pour chaque contrainte,
 //            a·x + b·y ≤ c, avec une tolérance TOLERANCE pour absorber les erreurs d'arrondi.
-// Entrée   : point, un Point, ex. { x: 2, y: 3 } ; constraints, ex. CONSTRAINTS.
+// Entrée   : point, un Point, ex. { x: 2, y: 3 } ;
+//            constraints, ex. CONSTRAINTS.
 // Sortie   : un booléen, true si a·x + b·y ≤ rhs + TOLERANCE pour TOUTES les contraintes.
 // Exemple  : isFeasible({ x: 2, y: 3 }, CONSTRAINTS) → false (x + y = 5 > 4) ;
 //            isFeasible({ x: 2, y: 2 }, CONSTRAINTS) → true.
@@ -107,7 +115,8 @@ function isFeasible(point: Point, constraints: Constraint[]): boolean {
 // TODO 3 — Contraintes saturées en un point.
 // Objectif : lister les contraintes vérifiées avec égalité au point donné,
 //            c'est-à-dire |a·x + b·y − c| ≤ TOLERANCE (cours §4, « Contrainte saturée »).
-// Entrée   : point, un Point, ex. { x: 2, y: 2 } ; constraints, ex. CONSTRAINTS.
+// Entrée   : point, un Point, ex. { x: 2, y: 2 } ;
+//            constraints, ex. CONSTRAINTS.
 // Sortie   : un tableau des noms (name) des contraintes saturées, dans l'ordre de constraints.
 // Exemple  : findBindingConstraints({ x: 2, y: 2 }, CONSTRAINTS) → ["capacite", "x_max"].
 // (Indice 3 en fin de fichier.)
@@ -116,8 +125,12 @@ function findBindingConstraints(point: Point, constraints: Constraint[]): string
 }
 
 // TODO 4 — Sommets de la région réalisable.
-// Objectif : calculer l'intersection de chaque paire de contraintes (i < j) et ne
-//            garder que les points réalisables : ce sont les sommets du polygone.
+// Objectif : obtenir les sommets du polygone réalisable :
+//            - calculer l'intersection de chaque paire de contraintes (i < j) ;
+//            - écarter les paires de droites parallèles (pas d'intersection)
+//              et les points hors de la région réalisable ;
+//            - ne garder qu'un exemplaire de chaque point ;
+//            - trier les points avec byXThenY.
 // Entrée   : constraints, un tableau de contraintes, ex. CONSTRAINTS (5 contraintes → 10 paires).
 // Sortie   : un tableau de Point, sans doublon, trié avec byXThenY.
 // Exemple  : computeVertices(CONSTRAINTS)
@@ -141,10 +154,17 @@ function computeVertices(constraints: Constraint[]): Point[] {
 
 // TODO 5 — Meilleur sommet pour l'objectif.
 // Objectif : appliquer le théorème du cours (un optimum, s'il existe, est atteint
-//            en un sommet) : évaluer l'objectif sur chaque sommet et garder le meilleur.
-// Entrée   : constraints, ex. CONSTRAINTS ; objective, les coefficients { x, y }, ex. OBJECTIVE.
-// Sortie   : un Optimum { x, y, value, bindingConstraints } (value = valeur de l'objectif,
-//            bindingConstraints = noms des contraintes saturées), ou null s'il n'y a aucun sommet.
+//            en un sommet) :
+//            - calculer les sommets de la région réalisable ;
+//            - évaluer l'objectif sur chaque sommet et garder le meilleur ;
+//            - renvoyer ses coordonnées, la valeur de l'objectif et les noms
+//              des contraintes saturées en ce sommet.
+// Entrée   : constraints, ex. CONSTRAINTS ;
+//            objective, les coefficients { x, y }, ex. OBJECTIVE.
+// Sortie   : un Optimum { x, y, value, bindingConstraints }, où :
+//            value = valeur de l'objectif ;
+//            bindingConstraints = noms des contraintes saturées ;
+//            ou null s'il n'y a aucun sommet.
 // Exemple  : findOptimum(CONSTRAINTS, OBJECTIVE)
 //            → { x: 2, y: 2, value: 10, bindingConstraints: ["capacite", "x_max"] }.
 // Attention: région vide (ex. x ≤ −1 et x ≥ 0) → aucun sommet → null.

@@ -8,7 +8,10 @@
  *
  *  OBJECTIF
  *  Générer TOUTES les décisions possibles d'un problème à 4 variables
- *  binaires et en déduire la solution optimale.
+ *  binaires et en déduire la solution optimale, en trois étapes :
+ *  - traduire un entier (masque) en décision (TODO 1) ;
+ *  - énumérer les 2ⁿ décisions, chacune une seule fois (TODO 2) ;
+ *  - garder la meilleure décision réalisable (TODO 3).
  *
  *  PRÉREQUIS
  *  - Exercice 1.1 (les fonctions d'évaluation sont fournies plus bas).
@@ -92,8 +95,11 @@ function generateAllDecisions(): Decision[] {
 }
 
 // TODO 3 — Trouver la meilleure décision réalisable.
-// Objectif : parcourir les décisions, écarter celles que isFeasible refuse
-//            et garder celle de plus grande valeur totale (l'optimum).
+// Objectif : trouver l'optimum en examinant chaque décision :
+//            - écarter celles que isFeasible refuse ;
+//            - parmi les autres, garder celle de plus grande valeur totale ;
+//            - la renvoyer sous forme de Solution : ses id retenus, son
+//              coût et sa valeur (null si aucune n'est réalisable).
 // Entrée   : decisions, la liste à examiner (ex. generateAllDecisions()) ;
 //            isFeasible, le test de réalisabilité à appliquer (ex. fitsBudget).
 // Sortie   : la meilleure Solution { selectedIds, cost, value }, ou null si

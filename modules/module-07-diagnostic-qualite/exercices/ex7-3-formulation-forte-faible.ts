@@ -10,6 +10,14 @@
  *  Constater sur un exemple que deux formulations ÉQUIVALENTES (même
  *  optimum entier) peuvent avoir des relaxations continues très
  *  différentes, et donc des bornes plus ou moins utiles au solveur.
+ *  En trois étapes :
+ *  - écrire la contrainte « pas de client servi par un entrepôt fermé »
+ *    sous ses deux formes, agrégée et désagrégée (TODO 1) ;
+ *  - assembler, pour chaque forme, le MILP et sa relaxation continue
+ *    (TODO 2) ;
+ *  - mesurer l'écart relatif entre la borne de relaxation et l'optimum
+ *    entier (TODO 3), puis comparer les deux formes dans le tableau
+ *    affiché par le programme principal.
  *
  *  PRÉREQUIS
  *  - Module 2 : relaxation linéaire (x ∈ {0,1} remplacé par 0 ≤ x ≤ 1).
@@ -121,7 +129,11 @@ async function solveModel(model: Model): Promise<SolverOutput | null> {
 // Objectif : écrire « pas de client servi par un entrepôt fermé » sous ses
 //            deux formes équivalentes en nombres entiers : agrégée (peu de
 //            lignes, relaxation faible) ou désagrégée (beaucoup de lignes,
-//            relaxation serrée).
+//            relaxation serrée). Selon formulation :
+//            - "agregee" : une contrainte par entrepôt, le nombre de clients
+//              qu'il sert est nul s'il est fermé ;
+//            - "desagregee" : une contrainte par couple (client, entrepôt),
+//              le client n'est pas servi par l'entrepôt s'il est fermé.
 // Entrée   : formulation, "agregee" ou "desagregee".
 // Sortie   : un tableau de GlpkConstraint { name, vars, bnds } (format : CONSIGNE 1) :
 //              "agregee"    → 3 contraintes, une par entrepôt ;
@@ -143,11 +155,18 @@ function buildOpeningConstraints(formulation: Formulation): GlpkConstraint[] {
 // Objectif : construire, pour une formulation donnée, soit le MILP (variables
 //            binaires), soit sa relaxation continue (variables dans [0, 1]),
 //            afin de comparer la borne de relaxation à l'optimum entier.
+//            Le modèle réunit :
+//            - l'objectif fourni (coûts fixes + coûts d'affectation) ;
+//            - les contraintes d'affectation (fournies), puis les contraintes
+//              d'ouverture de la formulation choisie (TODO 1) ;
+//            - si isInteger : toutes les variables déclarées binaires ;
+//            - sinon : toutes les variables bornées entre 0 et 1.
 // Entrée   : formulation, "agregee" ou "desagregee" ;
 //            isInteger, true pour le MILP, false pour la relaxation.
-// Sortie   : un Model : objectif fourni (buildObjective()), contraintes
-//            d'affectation (fournies) puis d'ouverture (TODO 1), et selon
-//            isInteger : binaries (18 noms) OU bounds (18 bornes GLP_DB [0, 1]).
+// Sortie   : un Model :
+//              objectif fourni (buildObjective()) ;
+//              contraintes d'affectation (fournies) puis d'ouverture (TODO 1) ;
+//              selon isInteger : binaries (18 noms) OU bounds (18 bornes GLP_DB [0, 1]).
 // Exemple  : buildModel("agregee", false).bounds?.length → 18, binaries absent ;
 //            buildModel("desagregee", true).binaries?.length → 18, bounds absent ;
 //            relaxation agrégée → z = 79 ; MILP des deux formes → z = 112.

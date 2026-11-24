@@ -8,7 +8,14 @@
  *
  *  OBJECTIF
  *  Énumérer les formulaires de 3 questions qui respectent une liste de
- *  contraintes-données, puis ajouter une règle de dépendance.
+ *  contraintes-données, puis ajouter une règle de dépendance, en quatre
+ *  étapes :
+ *  - énumérer toutes les décisions possibles sur les 5 items (TODO 1) ;
+ *  - ne garder que celles qui respectent toutes les contraintes, avec
+ *    leurs items choisis et leur score total (TODO 2) ;
+ *  - traduire la règle « ifId exige thenId » en contrainte-donnée (TODO 3) ;
+ *  - choisir la solution de plus grande valeur (TODO 4), pour comparer
+ *    l'optimum avec et sans « i5 exige i3 ».
  *
  *  PRÉREQUIS
  *  - Exercice 3.1 (computeLhs, satisfiesConstraint, buildConstraints fournis).
@@ -98,13 +105,15 @@ function enumerateDecisions(): Decision[] {
 }
 
 // TODO 2 — Solutions valides.
-// Objectif : garder les décisions qui respectent TOUTES les contraintes de
-//            la liste (aucune violation), et les présenter comme des Solution.
+// Objectif : à partir des décisions énumérées (TODO 1) :
+//            - garder celles qui respectent TOUTES les contraintes de la
+//              liste (aucune violation) ;
+//            - présenter chacune comme une Solution { selectedIds, value }.
 // Entrée   : constraints, la liste des contraintes-données,
 //            ex. buildConstraints(ITEMS) (cardinalité, 3 couvertures, exclusion).
-// Sortie   : un tableau de Solution { selectedIds, value }, où selectedIds
-//            est la liste des ids choisis (outil getSelectedIds) et value le
-//            score total (outil computeTotalScore), dans l'ordre d'énumération.
+// Sortie   : un tableau de Solution, dans l'ordre d'énumération, chacune avec :
+//            selectedIds, la liste des ids choisis (outil getSelectedIds) ;
+//            value, le score total (outil computeTotalScore).
 // Exemple  : findValidSolutions(buildConstraints(ITEMS)).map(solution => solution.value)
 //            → [22, 21, 19, 18] ; la première est { selectedIds: ["i1", "i3", "i5"], value: 22 }.
 // Attention: une liste vide de contraintes laisse passer les 32 décisions.
@@ -118,7 +127,8 @@ function findValidSolutions(constraints: Constraint[]): Solution[] {
 //            (x_ifId ≤ x_thenId) en contrainte-donnée de forme Σ coef·x ≤ rhs,
 //            toutes les variables à gauche. À toi de trouver les
 //            coefficients de ifId et de thenId, et le rhs.
-// Entrée   : ifId, l'item qui exige, ex. "i5" ; thenId, l'item exigé, ex. "i3".
+// Entrée   : ifId, l'item qui exige, ex. "i5" ;
+//            thenId, l'item exigé, ex. "i3".
 // Sortie   : une Constraint nommée `dependance_${ifId}_${thenId}`, de sens "<=".
 // Exemple  : buildImplication("i5", "i3") → { name: "dependance_i5_i3", coefs: …, sense: "<=", rhs: … }
 //            telle que {i5} seul soit interdit, mais {i3} seul, {i3, i5} et {} permis.

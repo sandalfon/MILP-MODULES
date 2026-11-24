@@ -7,9 +7,14 @@
  *  Lancer : node modules/module-04-modelisation-avancee/exercices/ex4-1-validateur-regles.ts
  *
  *  OBJECTIF
- *  Écrire un validateur GÉNÉRIQUE qui renvoie le nom de chaque règle
- *  violée par une sélection, puis vérifier que chaque règle logique a
- *  une traduction linéaire exacte (table de vérité).
+ *  Traduire des règles logiques de sélection en vérifications, puis en
+ *  inégalités linéaires, en trois étapes :
+ *  - écrire une vérification par type de règle : cardinalité exacte,
+ *    exclusion, dépendance, activation conditionnelle (TODO 1 à 4) ;
+ *  - assembler un validateur GÉNÉRIQUE qui renvoie le nom de chaque
+ *    règle violée par une sélection (TODO 5) ;
+ *  - évaluer l'inégalité linéaire de chaque règle et vérifier, par une
+ *    table de vérité, que cette traduction est exacte (TODO 6).
  *
  *  PRÉREQUIS
  *  - Module 3 : exclusion x_first + x_second ≤ 1, dépendance x_ifId ≤ x_thenId.
@@ -172,11 +177,12 @@ function findViolatedRules(selectedIds: string[], rules: Rule[]): string[] {
 
 // TODO 6 — Formulation linéaire d'une règle.
 // Objectif : évaluer l'INÉGALITÉ LINÉAIRE qui traduit la règle, telle que
-//            le solveur la verrait, sur un vecteur de variables 0/1 :
-//              exactCardinality : Σ_{id ∈ UNIVERSE} x_id = count
-//              exclusion        : x_first + x_second ≤ 1
-//              dependency       : x_ifId ≤ x_thenId
-//              activation       : Σ_{id ∈ group} x_id ≥ minimum · x_trigger
+//            le solveur la verrait, sur un vecteur de variables 0/1.
+//            Quatre cas, un par type de règle :
+//            - exactCardinality : Σ_{id ∈ UNIVERSE} x_id = count ;
+//            - exclusion        : x_first + x_second ≤ 1 ;
+//            - dependency       : x_ifId ≤ x_thenId ;
+//            - activation       : Σ_{id ∈ group} x_id ≥ minimum · x_trigger.
 // Entrée   : rule, une règle de RULES, ex. RULES[3] ;
 //            x, la valeur 0/1 de chaque item, ex. { G: 1, H1: 1, H2: 0, H3: 0 }.
 // Sortie   : un booléen, true si l'inégalité est satisfaite.

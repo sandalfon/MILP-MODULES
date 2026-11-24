@@ -9,7 +9,14 @@
  *  OBJECTIF
  *  Écrire une vraie MILP « mixte » : des binaires d'activation (ouvrir
  *  une usine) liés à des variables entières (quantités produites),
- *  puis comparer la solution de GLPK à une énumération de référence.
+ *  puis comparer la solution de GLPK à une énumération de référence :
+ *  - CONSTRUIRE le modèle : binaires y, entières q, contraintes de
+ *    demande, de capacité et de minimum (TODO 1) ;
+ *  - LIRE la réponse du solveur sous forme de plan : usines ouvertes,
+ *    production, coût (TODO 2) ;
+ *  - VÉRIFIER ce plan sans réutiliser le modèle (TODO 3) ;
+ *  - COMPARER le coût obtenu à celui de l'énumération fournie
+ *    (programme principal).
  *
  *  PRÉREQUIS
  *  - Module 4 : lier activité et quantité, min·y ≤ q ≤ cap·y (Big-M).
@@ -171,7 +178,8 @@ function computePlanCost(factories: Factory[], plan: Plan): number {
 //            GLPK n'accepte qu'une constante à droite : les variables y sont
 //            donc passées à gauche.
 // Entrée   : factories, ex. FACTORIES (U1 : capacité 80, coût fixe 300,
-//            coût unitaire 2, minimum 20…) ; demand, ex. DEMAND = 120.
+//              coût unitaire 2, minimum 20…) ;
+//            demand, ex. DEMAND = 120.
 // Sortie   : un Model en minimisation avec :
 //            - objective.vars : pour chaque usine, `y_<id>` (coef fixedCost)
 //              puis `q_<id>` (coef unitCost), soit 6 termes ;
@@ -179,7 +187,7 @@ function computePlanCost(factories: Factory[], plan: Plan): number {
 //              `capacite_<id>` (GLP_UP, ub 0) et `minimum_<id>` (GLP_LO, lb 0),
 //              soit 7 contraintes ;
 //            - binaries : les y (["y_U1", "y_U2", "y_U3"]) ;
-//              generals : les q (["q_U1", "q_U2", "q_U3"]).
+//            - generals : les q (["q_U1", "q_U2", "q_U3"]).
 // Exemple  : la contrainte "capacite_U1" de buildModel(FACTORIES, DEMAND) a pour
 //            vars [{ name: "q_U1", coef: 1 }, { name: "y_U1", coef: -80 }],
 //            type GLP_UP et ub 0 ; une fois résolu : coût optimal 760.
@@ -227,9 +235,10 @@ function buildModel(factories: Factory[], demand: number): Model {
 // TODO 2 — Lire la solution du solveur.
 // Objectif : traduire les variables renvoyées par GLPK en un plan lisible :
 //            quelles usines sont ouvertes, combien chacune produit, et à quel coût.
-// Entrée   : factories, ex. FACTORIES ; solverOutput, la réponse de glpk.solve,
-//            dont on lit solverOutput.result.vars, ex. { y_U1: 1, q_U1: 80,
-//            y_U2: 0, q_U2: 0, y_U3: 1, q_U3: 40 }, et solverOutput.result.z (ex. 760).
+// Entrée   : factories, ex. FACTORIES ;
+//            solverOutput, la réponse de glpk.solve, dont on lit
+//              solverOutput.result.vars, ex. { y_U1: 1, q_U1: 80,
+//              y_U2: 0, q_U2: 0, y_U3: 1, q_U3: 40 }, et solverOutput.result.z (ex. 760).
 // Sortie   : une Solution { openIds, production, cost } :
 //            - openIds : les id des usines dont y_<id> > 0.5, dans l'ordre de factories ;
 //            - production : id → q_<id> arrondi à l'entier le plus proche,
@@ -253,10 +262,15 @@ function readSolution(
 
 // TODO 3 — Vérification indépendante d'un plan.
 // Objectif : contrôler un plan { openIds, production } sans réutiliser le
-//            modèle : la demande est-elle couverte, chaque usine respecte-t-elle
-//            son état (fermée ⇒ rien), sa capacité et son minimum ?
-// Entrée   : factories, ex. FACTORIES ; demand, ex. 120 ; plan, ex.
-//            { openIds: ["U1"], production: { U1: 80, U2: 40 } }.
+//            modèle. Quatre contrôles, dans cet ordre :
+//            - la production totale est égale à la demande ;
+//            puis, pour chaque usine (dans l'ordre de factories) :
+//            - une usine fermée ne produit rien ;
+//            - une usine ouverte ne dépasse pas sa capacité ;
+//            - une usine ouverte produit au moins son minimum.
+// Entrée   : factories, ex. FACTORIES ;
+//            demand, ex. 120 ;
+//            plan, ex. { openIds: ["U1"], production: { U1: 80, U2: 40 } }.
 // Sortie   : la liste des messages d'erreur (string[]), vide si le plan est
 //            valide. Dans l'ordre : d'abord la demande, puis pour chaque usine
 //            (dans l'ordre de factories) : fermée mais quantité > 0 ; ouverte

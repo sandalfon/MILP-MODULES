@@ -7,7 +7,11 @@
  *  Lancer : node modules/module-01-fondamentaux/exercices/ex1-3-cardinalite.ts
  *
  *  OBJECTIF
- *  Ajouter une contrainte au modèle et mesurer son effet sur l'optimum.
+ *  Ajouter une contrainte au modèle et mesurer son effet sur l'optimum :
+ *  - compter les produits choisis, Σ x_i (TODO 1) ;
+ *  - écrire le test du modèle de base, budget seul (TODO 2) ;
+ *  - écrire le test du modèle enrichi, budget + cardinalité (TODO 3) ;
+ *  - comparer les deux optimums et répondre aux QUESTIONS.
  *
  *  PRÉREQUIS
  *  - Exercices 1.1 et 1.2 (l'énumération est fournie ci-dessous).
@@ -108,8 +112,10 @@ function isFeasibleBaseModel(x: Decision): boolean {
 }
 
 // TODO 3 — Réalisabilité dans le modèle enrichi.
-// Objectif : une décision est réalisable si elle respecte le budget ET
-//            la nouvelle règle « au plus MAX_PRODUCTS produits ».
+// Objectif : une décision est réalisable si elle respecte les deux
+//            contraintes du modèle enrichi :
+//            - le budget : coût total ≤ BUDGET ;
+//            - la nouvelle règle : au plus MAX_PRODUCTS produits choisis.
 // Entrée   : x, une décision binaire, ex. { A: 0, B: 1, C: 1, D: 0 }.
 // Sortie   : true si les deux contraintes sont respectées, false sinon.
 // Exemple  : isFeasibleWithCardinality({ A: 0, B: 1, C: 1, D: 0 }) → true ;

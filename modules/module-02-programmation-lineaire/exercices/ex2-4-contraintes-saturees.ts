@@ -9,7 +9,14 @@
  *
  *  OBJECTIF
  *  Identifier les contraintes qui « bloquent » l'optimum, mesurer ce que
- *  rapporte le fait de les desserrer, et voir les limites de cette mesure.
+ *  rapporte le fait de les desserrer, et voir les limites de cette mesure :
+ *  - calculer l'écart et le statut d'une contrainte en un point, puis les
+ *    réunir dans un tableau pour toutes les contraintes (TODO 1 à 3) ;
+ *  - mesurer le gain obtenu en desserrant une contrainte, puis la valeur
+ *    marginale de chaque contrainte (TODO 4 et 5) ;
+ *  - vérifier la règle des écarts complémentaires à l'optimum (TODO 6) ;
+ *  - montrer que la valeur marginale n'est valable que localement (TODO 7),
+ *    puis observer le cas entier du sac à dos (QUESTIONS).
  *
  *  PRÉREQUIS
  *  - Exercice 2.2 (le calcul des sommets et de l'optimum est fourni).
@@ -157,9 +164,13 @@ function computeSlack(constraint: Constraint, point: Point): number {
 }
 
 // TODO 2 — Statut d'une contrainte en un point.
-// Objectif : traduire l'écart en un statut lisible, en comparant à ±TOLERANCE (jamais à 0 exactement) :
-//            écart < −TOLERANCE → "violée" ; écart ≤ TOLERANCE → "saturée" ; sinon → "marge".
-// Entrée   : constraint, ex. CONSTRAINTS[0] (x + y ≤ 4) ; point, ex. { x: 3, y: 3 }.
+// Objectif : traduire l'écart en un statut lisible, en comparant à ±TOLERANCE
+//            (jamais à 0 exactement). Trois cas :
+//            - écart < −TOLERANCE → "violée" ;
+//            - écart ≤ TOLERANCE → "saturée" ;
+//            - sinon → "marge".
+// Entrée   : constraint, ex. CONSTRAINTS[0] (x + y ≤ 4) ;
+//            point, ex. { x: 3, y: 3 }.
 // Sortie   : "violée", "saturée" ou "marge" (type Status).
 // Exemple  : computeStatus(CONSTRAINTS[0], { x: 3, y: 3 }) → "violée" (écart −2) ;
 //            computeStatus(CONSTRAINTS[0], { x: 2, y: 2 }) → "saturée".
@@ -169,8 +180,13 @@ function computeStatus(constraint: Constraint, point: Point): Status {
 }
 
 // TODO 3 — Tableau des écarts.
-// Objectif : résumer, pour chaque contrainte, son écart et son statut au point donné.
-// Entrée   : point, ex. { x: 2, y: 2 } ; constraints, ex. CONSTRAINTS.
+// Objectif : résumer la situation de chaque contrainte au point donné, avec
+//            une ligne par contrainte qui contient :
+//            - name, le nom de la contrainte ;
+//            - slack, son écart au point ;
+//            - status, son statut au point.
+// Entrée   : point, ex. { x: 2, y: 2 } ;
+//            constraints, ex. CONSTRAINTS.
 // Sortie   : un tableau de SlackRow { name, slack, status }, dans l'ordre de constraints.
 // Exemple  : buildSlackTable({ x: 2, y: 2 }, CONSTRAINTS)[0] → { name: "capacite", slack: 0, status: "saturée" } ;
 //            les statuts valent ["saturée", "saturée", "marge", "marge", "marge"].
@@ -181,9 +197,17 @@ function buildSlackTable(point: Point, constraints: Constraint[]): SlackRow[] {
 
 // TODO 4 — Gain obtenu en desserrant une contrainte.
 // Objectif : mesurer la variation de la valeur optimale quand le second membre de la
-//            contrainte `name` passe de rhs à rhs + delta (cours §4, valeur marginale).
-// Entrée   : constraints, ex. CONSTRAINTS ; objective, ex. OBJECTIVE ;
-//            name, le nom de la contrainte, ex. "capacite" ; delta, l'augmentation (1 par défaut).
+//            contrainte `name` passe de rhs à rhs + delta (cours §4, valeur marginale) :
+//            - retrouver la contrainte `name` (erreur explicite si aucune
+//              contrainte ne porte ce nom) ;
+//            - calculer la valeur optimale du LP d'origine ;
+//            - calculer la valeur optimale d'une COPIE du LP où ce second
+//              membre vaut rhs + delta ;
+//            - renvoyer la différence « après − avant ».
+// Entrée   : constraints, ex. CONSTRAINTS ;
+//            objective, ex. OBJECTIVE ;
+//            name, le nom de la contrainte, ex. "capacite" ;
+//            delta, l'augmentation (1 par défaut).
 // Sortie   : un nombre arrondi avec roundValue : valeur optimale après − valeur optimale avant.
 // Exemple  : computeLooseningGain(CONSTRAINTS, OBJECTIVE, "capacite") → 12 − 10 = 2 ;
 //            computeLooseningGain(CONSTRAINTS, OBJECTIVE, "x_max") → 1.
@@ -196,7 +220,8 @@ function computeLooseningGain(constraints: Constraint[], objective: Objective, n
 
 // TODO 5 — Valeurs marginales de toutes les contraintes.
 // Objectif : calculer, pour chaque contrainte, le gain obtenu en augmentant son second membre de 1.
-// Entrée   : constraints, ex. CONSTRAINTS ; objective, ex. OBJECTIVE.
+// Entrée   : constraints, ex. CONSTRAINTS ;
+//            objective, ex. OBJECTIVE.
 // Sortie   : un objet MarginalValues { nom de contrainte: gain pour +1 }.
 // Exemple  : computeMarginalValues(CONSTRAINTS, OBJECTIVE)
 //            → { capacite: 2, x_max: 1, y_max: 0, x_min: 0, y_min: 0 }.
@@ -208,7 +233,12 @@ function computeMarginalValues(constraints: Constraint[], objective: Objective):
 // TODO 6 — Règle des écarts complémentaires.
 // Objectif : vérifier qu'à l'optimum, pour chaque contrainte, SOIT l'écart est nul,
 //            SOIT la valeur marginale est nulle (leur produit vaut 0 à TOLERANCE près).
-// Entrée   : constraints, ex. CONSTRAINTS ; objective, ex. OBJECTIVE.
+//            Pour chaque contrainte, il faut donc :
+//            - son écart au point optimal ;
+//            - sa valeur marginale ;
+//            - le produit des deux, comparé à TOLERANCE.
+// Entrée   : constraints, ex. CONSTRAINTS ;
+//            objective, ex. OBJECTIVE.
 // Sortie   : un booléen, true si |écart × valeur marginale| ≤ TOLERANCE pour TOUTES les contraintes.
 // Exemple  : satisfiesComplementarySlackness(CONSTRAINTS, OBJECTIVE) → true
 //            (capacite : 0 × 2 ; y_max : 1 × 0 ; x_min : 2 × 0…).
@@ -219,8 +249,12 @@ function satisfiesComplementarySlackness(constraints: Constraint[], objective: O
 
 // TODO 7 — Profil de gain d'une contrainte.
 // Objectif : montrer que la valeur marginale n'est valable que localement, en calculant
-//            les gains successifs quand le second membre de `name` prend plusieurs valeurs.
-// Entrée   : constraints, ex. CONSTRAINTS ; objective, ex. OBJECTIVE ; name, ex. "capacite" ;
+//            les gains successifs quand le second membre de `name` prend plusieurs valeurs :
+//            - calculer la valeur optimale pour chaque second membre de rhsValues ;
+//            - renvoyer les écarts entre deux valeurs optimales consécutives.
+// Entrée   : constraints, ex. CONSTRAINTS ;
+//            objective, ex. OBJECTIVE ;
+//            name, ex. "capacite" ;
 //            rhsValues, les seconds membres à essayer dans l'ordre, ex. [4, 5, 6, 7].
 // Sortie   : un tableau de rhsValues.length − 1 nombres (arrondis) : en notant v(c) la valeur
 //            optimale avec le second membre c, [v(5) − v(4), v(6) − v(5), v(7) − v(6)].

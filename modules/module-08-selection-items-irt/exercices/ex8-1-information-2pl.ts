@@ -8,7 +8,14 @@
  *
  *  OBJECTIF
  *  Calculer les coefficients d'information qui serviront d'objectif à
- *  la MILP d'assemblage de test (exercices 8.2 à 8.4).
+ *  la MILP d'assemblage de test (exercices 8.2 à 8.4), en trois étapes :
+ *  - pour UN item, la probabilité de réussite P(θ) du modèle 2PL, puis
+ *    l'information de Fisher I(θ) qu'il apporte (TODO 1 et 2) ;
+ *  - pour toute la BANQUE, la matrice des I_i(θ_t) (un item par ligne,
+ *    un θ par colonne), puis le coefficient moyen pondéré de chaque
+ *    item (TODO 3 et 4) ;
+ *  - pour un TEST déjà choisi, son information totale TIF(θ) à un
+ *    niveau θ donné (TODO 5).
  *
  *  PRÉREQUIS
  *  - Cours : formules P(θ) et I(θ) du modèle 2PL, convention D.
@@ -57,9 +64,11 @@ const WEIGHTS: number[] = [1 / 3, 1 / 3, 1 / 3];
 // TODO 1 — Probabilité de réponse correcte (modèle 2PL).
 // Objectif : calculer P(θ) = 1 / (1 + exp(−D · a · (θ − b))), la probabilité qu'un
 //            candidat de niveau θ réussisse un item de discrimination a et de difficulté b.
-// Entrée   : a, la discrimination (ex. 1.2) ; b, la difficulté (ex. −1.0) ;
-//            theta, le niveau du candidat (ex. 0) ; scaleFactorD, le facteur
-//            d'échelle D (1 par défaut, 1.7 dans l'autre convention).
+// Entrée   : a, la discrimination (ex. 1.2) ;
+//            b, la difficulté (ex. −1.0) ;
+//            theta, le niveau du candidat (ex. 0) ;
+//            scaleFactorD, le facteur d'échelle D
+//              (1 par défaut, 1.7 dans l'autre convention).
 // Sortie   : un nombre entre 0 et 1.
 // Exemple  : probability2PL(1.2, -1.0, 0) → ≈ 0.7685 ; probability2PL(1.5, 0.4, 0.4) → 0.5 (θ = b).
 // Attention: les parenthèses comptent : c'est −D·a·(θ − b), pas −D·a·θ − b.
@@ -71,8 +80,11 @@ function probability2PL(a: number, b: number, theta: number, scaleFactorD = 1): 
 // TODO 2 — Information de Fisher d'un item 2PL.
 // Objectif : calculer I(θ) = (D·a)² · P(θ) · (1 − P(θ)), la précision qu'apporte
 //            l'item pour estimer un niveau θ (cours §2).
-// Entrée   : a, b, theta, scaleFactorD : mêmes paramètres que probability2PL,
-//            ex. a = 2.0, b = 0.8, theta = 0.8, scaleFactorD = 1.
+// Entrée   : mêmes paramètres que probability2PL :
+//            a, ex. 2.0 ;
+//            b, ex. 0.8 ;
+//            theta, ex. 0.8 ;
+//            scaleFactorD, ex. 1.
 // Sortie   : un nombre ≥ 0, maximal en θ = b où il vaut (D·a)²/4.
 // Exemple  : information2PL(2.0, 0.8, 0.8) → 1 (= 2²/4) ;
 //            information2PL(1.2, -1.0, -1.0, 1.7) → ≈ 1.0404 (= (1.7·1.2)²/4).
@@ -86,8 +98,8 @@ function information2PL(a: number, b: number, theta: number, scaleFactorD = 1): 
 // TODO 3 — Matrice d'information de la banque.
 // Objectif : pré-calculer I_i(θ_t) pour chaque item i et chaque θ_t de la grille
 //            (convention sans D) : ce sont les coefficients que recevra le solveur.
-// Entrée   : items, la banque (ex. ITEMS, 12 items) ; thetaGrid, les niveaux θ
-//            (ex. THETA_GRID = [-1, 0, 1]).
+// Entrée   : items, la banque (ex. ITEMS, 12 items) ;
+//            thetaGrid, les niveaux θ (ex. THETA_GRID = [-1, 0, 1]).
 // Sortie   : un tableau number[][] avec une ligne par item (même ordre que items)
 //            et une colonne par θ (même ordre que thetaGrid).
 // Exemple  : buildInformationMatrix(ITEMS, THETA_GRID) → 12 lignes de 3 valeurs ;

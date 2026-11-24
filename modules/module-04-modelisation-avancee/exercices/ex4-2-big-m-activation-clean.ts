@@ -8,8 +8,12 @@
  *
  *  OBJECTIF
  *  Lier une production continue q à une décision binaire y avec
- *  QMIN·y ≤ q ≤ M·y, choisir un M serré à partir des données et
- *  mesurer l'effet d'un M trop grand sur la relaxation.
+ *  QMIN·y ≤ q ≤ M·y, en trois étapes :
+ *  - choisir un M serré à partir des données (TODO 1) ;
+ *  - écrire la formulation linéaire de la liaison et la contrôler avec
+ *    la même règle écrite en clair (TODO 2 et 3) ;
+ *  - mesurer l'effet d'un M trop grand sur la relaxation : y minimal,
+ *    coût fixe sous-estimé, production fantôme (TODO 4 à 6).
  *
  *  PRÉREQUIS
  *  - Module 2 : la relaxation remplace y ∈ {0,1} par 0 ≤ y ≤ 1.
@@ -52,9 +56,10 @@ const INTEGRALITY_TOLERANCE: number = 1e-6;
 // TODO 1 — M serré déduit des données.
 // Objectif : calculer le Big-M de la liaison q ≤ M·y : la plus petite borne
 //            supérieure LÉGITIME de la quantité q (M valide ET serré, cours §4).
-//            La production est limitée par la machine (HOURLY_CAPACITY par
-//            heure pendant SHIFT_HOURS heures) et par la demande du client
-//            (MAX_CUSTOMER_DEMAND).
+//            Deux limites s'appliquent à la production :
+//            - la machine : HOURLY_CAPACITY unités par heure pendant
+//              SHIFT_HOURS heures ;
+//            - le client : jamais plus de MAX_CUSTOMER_DEMAND unités.
 // Entrée   : aucune ; la fonction lit les constantes de la section 1.
 // Sortie   : un nombre, la valeur de M.
 // Exemple  : computeTightM() → 100.
@@ -67,8 +72,11 @@ function computeTightM(): number {
 
 // TODO 2 — Formulation linéaire de la liaison activité/quantité.
 // Objectif : dire si le couple (y, quantity) respecte la formulation vue
-//            par le solveur : domaine y ∈ {0,1} et q ≥ 0, puis
-//            liaison QMIN·y ≤ q ≤ M·y (cours §3).
+//            par le solveur (cours §3). Quatre conditions, toutes requises :
+//            - domaine de y : y ∈ {0,1} ;
+//            - domaine de q : q ≥ 0 ;
+//            - minimum technique : QMIN·y ≤ q ;
+//            - liaison : q ≤ M·y.
 // Entrée   : y, l'indicatrice « la machine tourne », ex. 1 ;
 //            quantity, la quantité produite q, ex. 40 ;
 //            M, la borne de la liaison, ex. 100.
@@ -83,10 +91,14 @@ function satisfiesLinking(y: number, quantity: number, M: number): boolean {
 
 // TODO 3 — Même règle, écrite « en clair » (logique métier).
 // Objectif : écrire la règle métier SANS inégalité astucieuse, pour
-//            contrôler la formulation : machine éteinte → elle ne produit
-//            rien ; machine allumée → elle produit entre QMIN et capacity
-//            (bornes incluses) ; toute autre valeur de y est refusée.
-// Entrée   : y, ex. 1 ; quantity, ex. 40 ; capacity, la production maximale, ex. 100.
+//            contrôler la formulation. Trois cas :
+//            - machine éteinte (y = 0) → elle ne produit rien ;
+//            - machine allumée (y = 1) → elle produit entre QMIN et
+//              capacity (bornes incluses) ;
+//            - toute autre valeur de y → refusée.
+// Entrée   : y, ex. 1 ;
+//            quantity, ex. 40 ;
+//            capacity, la production maximale, ex. 100.
 // Sortie   : un booléen, true si le couple (y, quantity) est permis.
 // Exemple  : satisfiesBusinessLogic(1, 40, 100) → true ; satisfiesBusinessLogic(0, 0, 100) → true ;
 //            satisfiesBusinessLogic(1, 120, 100) → false.
@@ -101,7 +113,8 @@ function satisfiesBusinessLogic(y: number, quantity: number, capacity: number): 
 // Objectif : dans la relaxation, y devient continu dans [0, 1] ; calculer
 //            le plus petit y compatible avec la contrainte q ≤ M·y, celui
 //            que choisit un solveur qui minimise les coûts.
-// Entrée   : quantity, la production q, ex. 40 ; M, ex. 100.
+// Entrée   : quantity, la production q, ex. 40 ;
+//            M, ex. 100.
 // Sortie   : un nombre entre 0 et 1, le y minimal.
 // Exemple  : computeMinimalRelaxedY(40, 100) → 0.4 ; computeMinimalRelaxedY(40, 10000) → 0.004.
 // (Indice 4 en fin de fichier.)
@@ -113,7 +126,8 @@ function computeMinimalRelaxedY(quantity: number, M: number): number {
 // Objectif : calculer la part du coût d'allumage FIXED_COST que la
 //            relaxation compte pour produire quantity, quand y vaut son
 //            minimum relaxé (et non 1).
-// Entrée   : quantity, ex. 40 ; M, ex. 100.
+// Entrée   : quantity, ex. 40 ;
+//            M, ex. 100.
 // Sortie   : un nombre, le coût fixe compté (€).
 // Exemple  : computeRelaxedFixedCost(40, 100) → 200 ; computeRelaxedFixedCost(40, 10000) → 2.
 // Attention: le coût réel d'une machine allumée reste 500 € : l'écart

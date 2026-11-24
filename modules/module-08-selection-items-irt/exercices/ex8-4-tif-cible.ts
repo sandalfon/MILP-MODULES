@@ -9,7 +9,13 @@
  *  OBJECTIF
  *  Assembler le test dont la courbe d'information est la plus PROCHE
  *  d'une cible T = [2.0, 2.5, 2.0] en θ = −1, 0, 1, en linéarisant une
- *  valeur absolue avec des variables d'écart.
+ *  valeur absolue avec des variables d'écart, en trois étapes :
+ *  - écrire, pour chaque θ de la grille, l'égalité qui définit l'excès
+ *    d⁺ et le manque d⁻ de la TIF par rapport à la cible (TODO 1) ;
+ *  - assembler le modèle qui minimise la somme des écarts, avec les
+ *    contraintes du test et des écarts continus positifs (TODO 2) ;
+ *  - recalculer l'écart total d'une sélection sans le solveur, pour
+ *    contrôler la valeur annoncée par GLPK (TODO 3).
  *
  *  PRÉREQUIS
  *  - Exercice 8.3 (contraintes de test et recalcul de la TIF fournis).
@@ -121,12 +127,14 @@ async function solveModel(model: LP): Promise<SolveOutcome> {
 // TODO 1 — Contraintes d'écart à la TIF cible.
 // Objectif : pour chaque θ de la grille (position thetaIndex), écrire l'égalité
 //            Σ_i I_i(θ)·x_i − d⁺ + d⁻ = cible, qui définit l'excès d⁺ et le manque d⁻.
-// Entrée   : items (ex. ITEMS) ; thetaGrid (ex. THETA_GRID = [-1, 0, 1]) ;
+// Entrée   : items (ex. ITEMS) ;
+//            thetaGrid (ex. THETA_GRID = [-1, 0, 1]) ;
 //            target, la TIF visée à chaque θ (ex. TARGET_TIF = [2.0, 2.5, 2.0]).
-// Sortie   : un tableau de GlpkConstraint, une par θ : vars contient un terme par item
-//            de coefficient information2PL(item.a, item.b, theta), puis
-//            { name: `dplus_${thetaIndex}`, coef: −1 } et { name: `dmoins_${thetaIndex}`, coef: +1 } ;
-//            bnds de type glpk.GLP_FX avec lb = ub = target[thetaIndex].
+// Sortie   : un tableau de GlpkConstraint, une par θ :
+//              vars contient un terme par item de coefficient
+//                information2PL(item.a, item.b, theta), puis
+//                { name: `dplus_${thetaIndex}`, coef: −1 } et { name: `dmoins_${thetaIndex}`, coef: +1 } ;
+//              bnds de type glpk.GLP_FX avec lb = ub = target[thetaIndex].
 // Exemple  : buildTargetConstraints(ITEMS, THETA_GRID, TARGET_TIF) → 3 contraintes de
 //            14 termes ; pour θ = 0 : dplus_1 → −1, dmoins_1 → +1, lb = ub = 2.5.
 // Attention: les noms des variables d'écart doivent être uniques (un indice par θ).
@@ -138,13 +146,22 @@ function buildTargetConstraints(items: Item[], thetaGrid: number[], target: numb
 // TODO 2 — Modèle « TIF cible » complet.
 // Objectif : assembler MIN Σ_t (d⁺_t + d⁻_t) sous les contraintes du test et les
 //            contraintes d'écart, avec x_i binaires et d⁺, d⁻ continues ≥ 0 (cours §7).
-// Entrée   : items (ex. ITEMS) ; rules (ex. RULES) ; thetaGrid (ex. THETA_GRID) ;
+//            Le modèle contient :
+//            - l'objectif, à minimiser, qui porte sur les variables d'écart d⁺ et d⁻
+//              de chaque θ ;
+//            - les contraintes du test (longueur, quotas, exclusions) ;
+//            - les contraintes d'écart, une par θ de thetaGrid ;
+//            - la déclaration des variables d'items comme binaires ;
+//            - la borne inférieure 0 de chaque variable d'écart.
+// Entrée   : items (ex. ITEMS) ;
+//            rules (ex. RULES) ;
+//            thetaGrid (ex. THETA_GRID) ;
 //            target (ex. TARGET_TIF).
 // Sortie   : un Model { name, objective, subjectTo, binaries, bounds } :
-//            objective en glpk.GLP_MIN, coefficient 1 sur chacune des variables d'écart ;
-//            subjectTo = contraintes du test (buildTestConstraints) puis contraintes d'écart ;
-//            binaries = les id des items seulement ; bounds = une borne GLP_LO, lb = 0,
-//            par variable d'écart.
+//              objective en glpk.GLP_MIN, coefficient 1 sur chacune des variables d'écart ;
+//              subjectTo = contraintes du test (buildTestConstraints) puis contraintes d'écart ;
+//              binaries = les id des items seulement ;
+//              bounds = une borne GLP_LO, lb = 0, par variable d'écart.
 // Exemple  : buildTargetModel(ITEMS, RULES, THETA_GRID, TARGET_TIF) → 6 variables
 //            d'écart dans l'objectif, 6 bornes, aucune binaire en « d… » ;
 //            résolu, écart total ≈ 0.1271.
@@ -158,7 +175,8 @@ function buildTargetModel(items: Item[], rules: Rules, thetaGrid: number[], targ
 // Objectif : calculer Σ_t |TIF(θ_t) − target[t]| à partir des paramètres a et b,
 //            pour contrôler la valeur annoncée par GLPK.
 // Entrée   : selectedItems, les items du test (ex. q02, q04, q07, q08, q10, q12) ;
-//            thetaGrid (ex. THETA_GRID) ; target (ex. TARGET_TIF = [2.0, 2.5, 2.0]).
+//            thetaGrid (ex. THETA_GRID) ;
+//            target (ex. TARGET_TIF = [2.0, 2.5, 2.0]).
 // Sortie   : un nombre ≥ 0, la somme des écarts absolus.
 // Exemple  : pour le test « information maximale » (TIF ≈ [2.2011, 3.3656, 2.4139])
 //            → ≈ 0.2011 + 0.8656 + 0.4139 = 1.4806.
