@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Le MILP pas à pas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112..125,600;112..125,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Mise en page : un cahier de calcul sur papier millimétré. Un panneau par slide
+   (texte à gauche, figure à droite) et une barre de navigation numérotée de 1 à 5. */
+:root {
+  color-scheme: light;
+  --paper: #edf1f5;          /* papier millimétré */
+  --grid-line: rgba(30, 60, 110, 0.07);
+  --sheet: #fbfcfd;          /* surface du panneau */
+  --ink: #14213d;            /* encre */
+  --pencil: #56637a;         /* texte secondaire, axes */
+  --rule: #cfd8e3;           /* filets */
+  --accent: #0b7a75;         /* trait principal, variables */
+  --accent-soft: rgba(11, 122, 117, 0.14);
+  --highlight: #f2c14e;      /* surligneur : la meilleure solution */
+  --reject: #b8475a;         /* irréalisable, élagué */
+  --c-var: #0b7a75;          /* variables */
+  --c-obj: #9a6400;          /* objectif */
+  --c-cons: #b03a55;         /* contraintes */
+  --font-display: "Archivo", "Arial Black", "Helvetica Neue", sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-math: "JetBrains Mono", "SFMono-Regular", "Consolas", monospace;
+  --step--1: 0.86rem;
+  --step-0: 1.08rem;
+  --step-1: 1.32rem;
+  --step-3: clamp(1.5rem, 1rem + 1.4vw, 2.1rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0e141c;
+    --grid-line: rgba(140, 180, 230, 0.06);
+    --sheet: #151d28;
+    --ink: #e4eaf2;
+    --pencil: #97a5b8;
+    --rule: #2a3646;
+    --accent: #3cc4bc;
+    --accent-soft: rgba(60, 196, 188, 0.16);
+    --highlight: #f2c14e;
+    --reject: #ef7f92;
+    --c-var: #5fd4cb;
+    --c-obj: #f2c14e;
+    --c-cons: #f28da0;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0e141c;
+  --grid-line: rgba(140, 180, 230, 0.06);
+  --sheet: #151d28;
+  --ink: #e4eaf2;
+  --pencil: #97a5b8;
+  --rule: #2a3646;
+  --accent: #3cc4bc;
+  --accent-soft: rgba(60, 196, 188, 0.16);
+  --highlight: #f2c14e;
+  --reject: #ef7f92;
+  --c-var: #5fd4cb;
+  --c-obj: #f2c14e;
+  --c-cons: #f28da0;
+}
+
+* { box-sizing: border-box; }
+/* Une slide inactive porte l'attribut hidden : il doit l'emporter sur display: grid. */
+[hidden] { display: none !important; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 20px 20px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  padding-block: clamp(16px, 3vw, 40px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.deck { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+.deck-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 24px;
+  font-family: var(--font-math);
+  font-size: var(--step--1);
+  color: var(--pencil);
+}
+.deck-head strong { color: var(--ink); font-weight: 600; }
+
+.slide {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: clamp(20px, 3.5vw, 44px);
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(20px, 3.5vw, 48px);
+  align-items: center;
+  min-height: min(640px, 80vh);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .slide:not([hidden]) { animation: show 260ms ease-out; }
+  @keyframes show { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+@media (max-width: 760px) { .slide { grid-template-columns: minmax(0, 1fr); min-height: 0; } }
+
+.text { display: grid; gap: 14px; max-width: 62ch; }
+.eyebrow {
+  font-family: var(--font-math);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+h1, h2 {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: var(--step-3);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+p { margin: 0; }
+.lead { font-size: var(--step-1); line-height: 1.45; }
+.muted { color: var(--pencil); }
+.math { font-family: var(--font-math); }
+.var { color: var(--accent); font-family: var(--font-math); font-weight: 600; }
+
+/* Slide 1 : les produits et le budget */
+.products { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.product {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  align-items: baseline;
+  background: var(--sheet);
+}
+.product .name {
+  grid-row: span 2;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--accent);
+}
+.product .cost, .product .value { font-family: var(--font-math); font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+.budget { display: grid; gap: 6px; grid-column: 1 / -1; }
+.budget-bar {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+.budget-label { display: flex; justify-content: space-between; font-family: var(--font-math); font-size: var(--step--1); color: var(--pencil); }
+
+/* Slide 2 : le modèle écrit */
+.model {
+  font-family: var(--font-math);
+  font-size: clamp(0.9rem, 0.75rem + 0.6vw, 1.12rem);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: clamp(16px, 2.5vw, 28px);
+  display: grid;
+  gap: 18px;
+  overflow-x: auto;
+  background: var(--sheet);
+}
+.model .row { display: grid; gap: 4px; }
+.model .tag { font-family: var(--font-body); font-size: var(--step--1); color: var(--pencil); letter-spacing: 0.06em; text-transform: uppercase; }
+.model .eq { white-space: nowrap; }
+.acronym { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.acronym li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 10px; align-items: baseline; }
+.acronym b {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--accent);
+}
+
+.ratio { width: 100%; border-collapse: collapse; font-size: var(--step--1); font-variant-numeric: tabular-nums; }
+.ratio th, .ratio td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: right; }
+.ratio th:first-child, .ratio td:first-child { text-align: left; }
+.ratio th { font-weight: 600; color: var(--pencil); }
+.ratio td { font-family: var(--font-math); }
+
+/* Slides 4 et 5 : la forme « optimiser sous contraintes » et le tableau des règles */
+.form {
+  font-family: var(--font-math);
+  font-size: clamp(0.85rem, 0.75rem + 0.4vw, 1rem);
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--paper);
+  border-left: 3px solid var(--accent);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.form .kw { font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.85em; color: var(--ink); }
+.form .indent { padding-left: 1.6em; }
+.form .muted { font-family: var(--font-body); font-size: 0.9em; }
+.table-wrap { overflow-x: auto; }
+.rules { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+.rules th, .rules td { padding: 9px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.rules th { font-weight: 600; color: var(--pencil); }
+.rules td:nth-child(2) { color: var(--pencil); white-space: nowrap; }
+.rules td:nth-child(3) { font-family: var(--font-math); white-space: nowrap; }
+.bar-on { fill: var(--accent); }
+.bar-text { font-family: var(--font-math); font-size: 11px; fill: var(--ink); font-weight: 600; }
+/* Slide 6 : parcours glouton et shadow test */
+.cat { display: grid; gap: 14px; }
+.cat-intro, .cat-note { font-size: var(--step-0); color: var(--pencil); }
+.run { display: grid; gap: 6px; }
+.run-name { font-family: var(--font-math); font-size: var(--step--1); font-weight: 600; }
+.slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; max-width: 26rem; margin: 0; padding: 0; list-style: none; counter-reset: slot; }
+.slots li {
+  counter-increment: slot;
+  border: 1.5px solid var(--rule);
+  border-radius: 4px;
+  padding: 3px 2px;
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  font-family: var(--font-math);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  background: var(--sheet);
+}
+.slots li::before { content: "Q" counter(slot); font-size: 0.75em; color: var(--pencil); }
+.slots li span { color: var(--pencil); }
+.slots li.good { border-color: var(--accent); background: var(--accent-soft); }
+.slots li.bad { border-color: var(--reject); border-style: dashed; }
+.slots li.diverge { outline: 2px solid var(--highlight); outline-offset: 2px; }
+.verdict { font-size: var(--step--1); font-weight: 600; }
+.verdict.good { color: var(--accent); }
+.verdict.bad { color: var(--reject); }
+.tally { display: grid; gap: 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.tally-title { font-size: var(--step-0); color: var(--pencil); }
+.tally-row { display: grid; grid-template-columns: 7.5rem 1fr max-content; gap: 10px; align-items: center; font-size: var(--step-0); }
+.tally-bar { height: 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: 2px; }
+.tally-bar i { display: block; height: 100%; background: var(--reject); }
+.tally-value { font-family: var(--font-math); font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .tally-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* Plein écran */
+.nav-right { display: flex; gap: 8px; flex-wrap: wrap; }
+/* La page entière passe en plein écran (classe posée par le script) : la présentation
+   occupe exactement l'écran, la slide prend toute la hauteur libre et le texte grossit. */
+html.is-fullscreen { font-size: clamp(15px, 1.05vw, 24px); height: 100%; }
+html.is-fullscreen body { height: 100%; overflow: hidden; padding-block: clamp(12px, 1.8vw, 28px); }
+html.is-fullscreen .deck { max-width: none; height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; }
+html.is-fullscreen .hint { display: none; }
+html.is-fullscreen .slide { min-height: 0; height: 100%; overflow: auto; }
+html.is-fullscreen .figure > svg { max-height: 52vh; }
+.realistic { font-size: var(--step--1); border-left: 3px solid var(--highlight); padding: 8px 12px; background: var(--paper); display: grid; gap: 4px; }
+.realistic ul { margin: 0; padding-left: 1.1em; display: grid; gap: 0; }
+.methods { display: grid; gap: 6px; }
+.methods ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.methods ul ul { gap: 0; font-size: var(--step--1); color: var(--pencil); }
+.figure { display: grid; gap: 8px; margin: 0; }
+.figure > svg { width: 100%; height: auto; display: block; overflow: visible; }
+.figure figcaption { font-size: var(--step--1); color: var(--pencil); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+
+/* SVG */
+.axis line { stroke: var(--pencil); stroke-width: 1; }
+.grid line { stroke: var(--rule); stroke-width: 1; }
+.tick, .label {
+  font-family: var(--font-math);
+  font-size: 11px;
+  fill: var(--pencil);
+}
+.label { fill: var(--ink); font-size: 12px; }
+.limit { stroke: var(--reject); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.limit-text { fill: var(--reject); font-family: var(--font-math); font-size: 11px; }
+.pt-ok { fill: var(--accent); }
+.pt-ko { fill: var(--sheet); stroke: var(--reject); stroke-width: 1.5; }
+.pt-best { fill: var(--highlight); stroke: var(--ink); stroke-width: 1.5; }
+.pt-text { font-family: var(--font-math); font-size: 10px; fill: var(--ink); }
+
+.nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.steps { display: flex; gap: 8px; flex-wrap: wrap; }
+.steps button, .step-btn {
+  font-family: var(--font-math);
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1.5px solid var(--pencil);
+  border-radius: 4px;
+}
+.steps button { width: 2.4rem; height: 2.4rem; font-size: var(--step--1); }
+.steps button[aria-current="step"] { background: var(--ink); border-color: var(--ink); color: var(--sheet); }
+.step-btn { padding: 8px 14px; font-size: var(--step--1); }
+.step-btn:disabled { opacity: 0.4; cursor: default; }
+button:focus-visible { outline: 3px solid var(--highlight); outline-offset: 2px; }
+.hint { font-size: var(--step--1); color: var(--pencil); }
+
+/* Tout le texte prend la couleur de l'encre : blanc en thème sombre, encre foncée en thème clair.
+   Les couleurs restent sur les formes (barres, points, bordures), plus jamais sur le texte. */
+.deck-head, .eyebrow, .muted, .product .name, .budget-label, .acronym b,
+.ratio th, .rules th, .rules td, .cat-intro, .cat-note, .slots li::before, .slots li span,
+.verdict, .verdict.good, .verdict.bad, .tally-title, .methods ul ul, .figure figcaption, .hint,
+.realistic, .form .muted { color: var(--ink); }
+.tick, .label, .limit-text, .pt-text, .bar-text { fill: var(--ink); }
+.var { color: var(--c-var); }
+.model .tag-var { color: var(--c-var); }
+.model .tag-obj, .form .kw-obj { color: var(--c-obj); }
+.model .tag-cons, .form .kw-cons { color: var(--c-cons); }
+.model .tag { font-weight: 600; }
+
+/* Slide 3 : tableau des règles plus lisible */
+.rules { font-size: 1.2rem; }
+.rules th, .rules td { padding: 11px 10px; }
+
+/* Slide 6 : la version réaliste */
+.rule-list { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.rule-list.results { gap: 8px; }
+.rule-list ul { margin: 0; padding-left: 1.2em; font-size: var(--step--1); }
+.form.big { font-size: clamp(0.9rem, 0.75rem + 0.5vw, 1.1rem); gap: 8px; padding: 18px 22px; }
+.intro-list { font-size: var(--step-1); gap: 8px; }
+.intro-list ul { font-size: var(--step-0); }
+.seg-length { fill: var(--ink); }
+.seg-maximin { fill: var(--c-obj); }
+.seg-quotas { fill: var(--c-var); }
+.seg-pairs { fill: var(--c-cons); }
+.seg-set { fill: var(--pencil); }
+.seg-both { fill: var(--c-cons); stroke: var(--c-var); stroke-width: 3; }
+.figure > svg.mini-chart { max-height: 20vh; }
+html.is-fullscreen .figure > svg#fig-costs { max-height: 42vh; }
+</style>
+</head>
+<body>
+<main class="deck">
+  <header class="deck-head">
+    <span><strong>Le MILP pas à pas</strong> · programmation linéaire en nombres entiers</span>
+    <span id="counter">slide 1 / 5</span>
+  </header>
+
+  <!-- 1 -->
+  <section class="slide" aria-labelledby="t1">
+    <div class="text">
+      <span class="eyebrow">1 · Le problème</span>
+      <h1 id="t1">Choisir le mieux possible, sous contraintes</h1>
+      <ul class="rule-list intro-list">
+        <li>Un budget de 100 €, quatre produits.</li>
+        <li>Chaque produit a un coût et apporte une satisfaction.</li>
+        <li>Lesquels acheter pour la plus grande satisfaction, sans dépasser le budget ?</li>
+        <li>Tout acheter coûterait 140 € : il faut renoncer à quelque chose.</li>
+        <li>Le même casse-tête revient partout, en beaucoup plus gros :
+          <ul>
+            <li>composer un test à partir d'une banque de questions</li>
+            <li>planifier des équipes</li>
+            <li>remplir des camions</li>
+            <li>résoudre un sudoku</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    <div class="products" role="list" aria-label="Les quatre produits">
+      <div class="product" role="listitem"><span class="name">A</span><span class="cost">coût 30 €</span><span class="value">satisfaction 8</span></div>
+      <div class="product" role="listitem"><span class="name">B</span><span class="cost">coût 50 €</span><span class="value">satisfaction 12</span></div>
+      <div class="product" role="listitem"><span class="name">C</span><span class="cost">coût 40 €</span><span class="value">satisfaction 10</span></div>
+      <div class="product" role="listitem"><span class="name">D</span><span class="cost">coût 20 €</span><span class="value">satisfaction 5</span></div>
+      <div class="budget">
+        <div class="budget-bar" aria-hidden="true"></div>
+        <div class="budget-label"><span>budget</span><span>100 €</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" aria-labelledby="t3" hidden>
+    <div class="text">
+      <span class="eyebrow">2 · La force brute</span>
+      <h2 id="t3">Tout essayer marche… pour 4 produits</h2>
+      <p class="lead">Avec 4 produits, il n'y a que 2⁴ = 16 achats possibles. On les calcule tous, on écarte ceux qui dépassent le budget, on garde le meilleur : A, B et D, satisfaction 25.</p>
+      <table class="ratio" aria-label="Nombre de combinaisons selon le nombre de produits">
+        <thead><tr><th>produits</th><th>combinaisons 2ⁿ</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td>16</td></tr>
+          <tr><td>30</td><td>1 073 741 824</td></tr>
+          <tr><td>100</td><td>≈ 1,27 × 10³⁰</td></tr>
+        </tbody>
+      </table>
+      <ul class="rule-list">
+        <li>Chaque produit en plus double le travail.</li>
+        <li>À 100 produits, à un milliard de combinaisons par seconde : des milliers de milliards d'années.</li>
+        <li>Il faut raisonner au lieu d'énumérer.</li>
+      </ul>
+    </div>
+    <figure class="figure">
+      <svg id="fig-3" viewBox="0 0 520 360" role="img" aria-label="Les 16 achats possibles placés selon leur coût et leur satisfaction, avec la limite de budget à 100 €"></svg>
+      <figcaption>
+        <span class="key"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" class="pt-ok"/></svg>dans le budget</span>
+        <span class="key"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" class="pt-ko"/></svg>hors budget</span>
+        <span class="key"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" class="pt-best"/></svg>meilleur achat</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" aria-labelledby="t4" hidden>
+    <div class="text">
+      <span class="eyebrow">3 · L'écriture classique</span>
+      <h2 id="t4">Optimiser… sous contraintes</h2>
+      <p class="lead">Tout MILP s'écrit de la même façon : ce qu'on veut optimiser, puis la liste des règles à respecter. En anglais : <em>optimize … subject to …</em></p>
+      <div class="form" aria-label="Forme générale d'un MILP">
+        <span><span class="kw kw-obj">maximiser</span> <span class="muted">(ou minimiser)</span></span>
+        <span class="indent">Σ c<sub>i</sub> · <span class="var">x<sub>i</sub></span></span>
+        <span><span class="kw kw-cons">sous contraintes</span> <span class="muted">(subject to)</span></span>
+        <span class="indent">Σ a<sub>i</sub> · <span class="var">x<sub>i</sub></span> ≤, = ou ≥ b <span class="muted">· une ligne par règle</span></span>
+        <span class="indent"><span class="var">x<sub>i</sub></span> ∈ {0, 1} <span class="muted">· ou entiers, ou réels</span></span>
+      </div>
+      <p>Le travail de modélisation consiste à traduire chaque règle métier en une telle ligne : une somme de « coefficient × variable », comparée à un nombre.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="rules" aria-label="Règles en français et contraintes linéaires correspondantes">
+        <thead><tr><th>règle en français</th><th>type</th><th>contrainte linéaire</th></tr></thead>
+        <tbody>
+          <tr><td>Ne pas dépasser 100 €</td><td>budget</td><td>30·<span class="var">x_A</span> + 50·<span class="var">x_B</span> + 40·<span class="var">x_C</span> + 20·<span class="var">x_D</span> ≤ 100</td></tr>
+          <tr><td>Au plus 2 produits</td><td>cardinalité</td><td><span class="var">x_A</span> + <span class="var">x_B</span> + <span class="var">x_C</span> + <span class="var">x_D</span> ≤ 2</td></tr>
+          <tr><td>Exactement 2 produits</td><td>cardinalité</td><td><span class="var">x_A</span> + <span class="var">x_B</span> + <span class="var">x_C</span> + <span class="var">x_D</span> = 2</td></tr>
+          <tr><td>Jamais A et B ensemble</td><td>exclusion</td><td><span class="var">x_A</span> + <span class="var">x_B</span> ≤ 1</td></tr>
+          <tr><td>Si on prend A, on prend D</td><td>implication</td><td><span class="var">x_A</span> ≤ <span class="var">x_D</span></td></tr>
+          <tr><td>Au moins un produit parmi C et D</td><td>couverture</td><td><span class="var">x_C</span> + <span class="var">x_D</span> ≥ 1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" aria-labelledby="t2" hidden>
+    <div class="text">
+      <span class="eyebrow">4 · La traduction</span>
+      <h2 id="t2">Écrire le problème en équations</h2>
+      <p class="lead">Pour chaque produit, une variable vaut 1 si on l'achète, 0 sinon. Le problème devient trois lignes de calcul.</p>
+      <ul class="acronym">
+        <li><b>M</b><span><strong>Mixed</strong> : on peut mélanger des variables entières et des variables continues (une quantité en litres, par exemple).</span></li>
+        <li><b>I</b><span><strong>Integer</strong> : certaines variables sont entières. Ici, 0 ou 1 : on n'achète pas la moitié d'un produit.</span></li>
+        <li><b>L</b><span><strong>Linear</strong> : seulement des sommes de « coefficient × variable », jamais de produits entre variables.</span></li>
+        <li><b>P</b><span><strong>Programming</strong> : au sens ancien de « planification », pas de « programmation informatique ».</span></li>
+      </ul>
+    </div>
+    <div class="model" aria-label="Le modèle mathématique">
+      <div class="row">
+        <span class="tag tag-var">Variables</span>
+        <span class="eq"><span class="var">x_A</span>, <span class="var">x_B</span>, <span class="var">x_C</span>, <span class="var">x_D</span> ∈ {0, 1}</span>
+      </div>
+      <div class="row">
+        <span class="tag tag-obj">Objectif : maximiser la satisfaction</span>
+        <span class="eq">max 8·<span class="var">x_A</span> + 12·<span class="var">x_B</span> + 10·<span class="var">x_C</span> + 5·<span class="var">x_D</span></span>
+      </div>
+      <div class="row">
+        <span class="tag tag-cons">Contrainte : respecter le budget</span>
+        <span class="eq">30·<span class="var">x_A</span> + 50·<span class="var">x_B</span> + 40·<span class="var">x_C</span> + 20·<span class="var">x_D</span> ≤ 100</span>
+      </div>
+      <p class="muted">Exemple : acheter A, B et D, c'est x = (1, 1, 0, 1). Coût 30 + 50 + 20 = 100 € ≤ 100, satisfaction 8 + 12 + 5 = 25.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" aria-labelledby="t5" hidden>
+    <div class="text">
+      <span class="eyebrow">5 · Une application</span>
+      <h2 id="t5">Assembler un test de 6 questions</h2>
+      <p class="lead">Chaque question i apporte une information c<sub>i</sub> : sa précision pour mesurer les candidats.</p>
+      <div class="form" aria-label="Modèle d'assemblage du test">
+        <span class="kw kw-obj">maximiser</span>
+        <span class="indent">Σ c<sub>i</sub> · <span class="var">x<sub>i</sub></span> <span class="muted">· information du test</span></span>
+        <span class="kw kw-cons">sous contraintes</span>
+        <span class="indent">Σ <span class="var">x<sub>i</sub></span> = 6 <span class="muted">· longueur exacte</span></span>
+        <span class="indent">Σ<sub>i ∈ d</sub> <span class="var">x<sub>i</sub></span> ≥ 1, pour d = A, B, C, D <span class="muted">· un item par domaine</span></span>
+        <span class="indent"><span class="var">x_q02</span> + <span class="var">x_q05</span> ≤ 1 <span class="muted">· exclusion</span></span>
+        <span class="indent"><span class="var">x<sub>i</sub></span> ∈ {0, 1}</span>
+      </div>
+      <div class="methods">
+        <span>4 000 questions, test de 32 : ≈ 6,19 × 10⁷⁹ tests possibles.</span>
+        <ul>
+          <li><strong>Tout vérifier</strong> : ≈ 2 × 10⁶³ ans
+            <ul>
+              <li>à un milliard de tests par seconde</li>
+              <li>presque autant de tests que d'atomes dans l'univers observable</li>
+            </ul>
+          </li>
+          <li><strong>GLPK</strong> : optimum en 8 à 10 ms
+            <ul>
+              <li>n'énumère pas : écarte des familles entières de tests grâce à des bornes</li>
+              <li>mêmes règles que ci-dessus</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <figure class="figure">
+      <svg id="fig-5" viewBox="0 0 520 330" role="img" aria-label="Nombre de tests de 6 questions possibles pour une banque de 10, 100, 500, 1000 et 4000 questions, en échelle logarithmique, avec le temps pour tous les vérifier"></svg>
+      <figcaption>
+        <span>Tests de 6 questions possibles, C(n, 6), échelle logarithmique. « tout vérifier » : estimé à un milliard de tests par seconde. « GLPK » : mesuré (médiane de 5 essais, Apple M1 Pro).</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" aria-labelledby="t7" hidden>
+    <div class="text">
+      <span class="eyebrow">6 · Une version réaliste</span>
+      <h2 id="t7">Un vrai test : 32 questions parmi 4 000</h2>
+      <p class="lead">Les règles d'un vrai test s'écrivent de la même façon.</p>
+      <ul class="rule-list">
+        <li>4 000 questions, 32 par test</li>
+        <li>16 domaines, 1 à 3 questions chacun</li>
+        <li>400 sous-domaines, jamais 2 questions de suite du même</li>
+        <li>au moins 4 questions d'un ensemble de 100 sous-domaines, dont celles des positions 2, 10, 20 et 25</li>
+        <li>200 paires de questions incompatibles</li>
+      </ul>
+      <ul class="rule-list results">
+        <li><strong>Objectif maximin</strong> : maximiser le minimum, c'est-à-dire rendre le niveau le moins bien mesuré le meilleur possible
+          <ul><li>z = la plus faible information du test parmi θ = −2, −1, 0, 1, 2 ; on maximise z</li></ul>
+        </li>
+        <li><strong>GLPK</strong> : test prouvé à moins de 2 % du meilleur en <strong>1 à 32 s</strong> (médiane 14 s)</li>
+        <li><strong>Ordre des questions</strong> : fixé en moins de 1 ms, après la résolution
+          <ul><li>positions 2, 10, 20, 25 et sous-domaines jamais consécutifs</li></ul>
+        </li>
+      </ul>
+    </div>
+    <div class="form big" aria-label="Modèle de la version réaliste">
+      <span class="kw kw-obj">maximiser</span>
+      <span class="indent">z <span class="muted">· information minimale sur θ = −2, −1, 0, 1, 2</span></span>
+      <span class="kw kw-cons">sous contraintes</span>
+      <span class="indent">Σ <span class="var">x<sub>i</sub></span> = 32</span>
+      <span class="indent">1 ≤ Σ<sub>i ∈ d</sub> <span class="var">x<sub>i</sub></span> ≤ 3 <span class="muted">· pour chaque domaine d</span></span>
+      <span class="indent">Σ<sub>i ∈ S</sub> <span class="var">x<sub>i</sub></span> ≥ 4 <span class="muted">· S : 100 sous-domaines</span></span>
+      <span class="indent"><span class="var">x<sub>i</sub></span> + <span class="var">x<sub>j</sub></span> ≤ 1 <span class="muted">· 200 paires</span></span>
+      <span class="indent">z ≤ Σ I<sub>i</sub>(θ) · <span class="var">x<sub>i</sub></span> <span class="muted">· pour chaque θ</span></span>
+      <span class="indent"><span class="var">x<sub>i</sub></span> ∈ {0, 1}</span>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" aria-labelledby="t8" hidden>
+    <div class="text">
+      <span class="eyebrow">7 · Le coût de chaque règle</span>
+      <h2 id="t8">Qu'est-ce qui coûte du temps ?</h2>
+      <p class="lead">Part du temps de résolution prise par chaque règle (médiane ≈ 14 s) :</p>
+      <ul class="rule-list results">
+        <li><strong>Objectif maximin</strong> : 41 %
+          <ul><li>équilibrer l'information sur 5 niveaux à la fois</li></ul>
+        </li>
+        <li><strong>Quotas par domaine</strong> : 35 %</li>
+        <li><strong>Paires incompatibles</strong> : 17 %
+          <ul><li>quotas et paires coûtent surtout ensemble : 7,7 s et 5,3 s séparément, 13,5 s à deux</li></ul>
+        </li>
+        <li><strong>Au moins 4 questions de l'ensemble S</strong> : 7 %</li>
+        <li><strong>Longueur du test</strong> : ≈ 0 %
+          <ul>
+            <li>sans le maximin, toutes les règles ensemble se résolvent en 0,01 s</li>
+            <li>moyenne sur les 6 ordres d'ajout de quotas, paires et S, maximin toujours en premier</li>
+            <li>parts très variables d'une banque à l'autre : ordres de grandeur</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    <figure class="figure">
+      <svg id="fig-costs" viewBox="0 0 520 380" role="img" aria-label="Part cumulée du temps de résolution par règle, de la moins coûteuse à la plus coûteuse : longueur, ensemble S, quotas, paires, maximin"></svg>
+      <figcaption>
+        <span>Part cumulée du temps de résolution, de la règle la moins coûteuse (gauche) à la plus coûteuse (droite). Médianes sur 5 banques générées (4 000 questions, 32 par test), arrêt à 2 % de l'optimum ; moyenne sur les 6 ordres d'ajout de quotas, paires et S.</span>
+      </figcaption>
+      <svg id="fig-interaction" class="mini-chart" viewBox="0 0 720 150" role="img" aria-label="Temps médian avec le maximin : seul 5,9 s, avec quotas 7,7 s, avec paires 5,3 s, avec quotas et paires 13,5 s"></svg>
+    </figure>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" aria-labelledby="t6" hidden>
+    <div class="text">
+      <span class="eyebrow">8 · Le test adaptatif</span>
+      <h2 id="t6">S'adapter au candidat sans tomber dans l'impasse</h2>
+      <p class="lead">Un test adaptatif choisit chaque question selon les réponses précédentes.</p>
+      <p>Choisir une question à la fois peut mener à l'impasse : plus aucune question ne respecte les règles.</p>
+      <p>Le <strong>shadow test</strong> (van der Linden, 1998) assemble, avant chaque question, un test complet valide : c'est un MILP, résolu à chaque question.</p>
+      <p>On pose sa meilleure question : une fin valide existe toujours.</p>
+    </div>
+    <div class="cat">
+      <p class="cat-intro">Même candidat (θ réel = −0,96), test de 5 questions, au moins une question par domaine A, B, C, D, jamais q02 avec q05 :</p>
+      <div class="run" aria-label="Parcours du choix glouton">
+        <span class="run-name">Choix glouton</span>
+        <ol class="slots">
+          <li><b>q02</b><span>A</span></li><li><b>q07</b><span>C</span></li><li><b>q01</b><span>A</span></li>
+          <li class="diverge bad"><b>q08</b><span>C</span></li><li class="bad"><b>q12</b><span>D</span></li>
+        </ol>
+        <span class="verdict bad">Domaine B absent : test invalide</span>
+      </div>
+      <div class="run" aria-label="Parcours du shadow test">
+        <span class="run-name">Shadow test</span>
+        <ol class="slots">
+          <li><b>q02</b><span>A</span></li><li><b>q07</b><span>C</span></li><li><b>q01</b><span>A</span></li>
+          <li class="diverge good"><b>q12</b><span>D</span></li><li class="good"><b>q04</b><span>B</span></li>
+        </ol>
+        <span class="verdict good">4 domaines couverts : test valide</span>
+      </div>
+      <p class="cat-note">Après 3 questions (A, C, A), il reste 2 places et il manque B et D. Le choix glouton gaspille la 4ᵉ question en C ; le shadow test, qui voit le test entier, garde les 2 places pour D et B.</p>
+      <div class="tally" aria-label="Résultats de 1 000 passages simulés">
+        <span class="tally-title">Sur 1 000 passages simulés (banque de 12 questions du cours)</span>
+        <div class="tally-row"><span>Choix glouton</span><span class="tally-bar"><i style="width: 87.7%"></i></span><span class="tally-value">877 tests invalides</span></div>
+        <div class="tally-row"><span>Shadow test</span><span class="tally-bar"><i style="width: 0%"></i></span><span class="tally-value">0</span></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="nav" aria-label="Navigation entre les slides">
+    <button class="step-btn" id="prev" type="button">← Précédente</button>
+    <div class="steps" id="steps"></div>
+    <span class="nav-right">
+      <button class="step-btn" id="fullscreen" type="button">Plein écran</button>
+      <button class="step-btn" id="next" type="button">Suivante →</button>
+    </span>
+  </nav>
+  <p class="hint">Flèches ← → du clavier pour avancer, touche F pour le plein écran (Échap pour en sortir). Slides 1 à 4 : fil rouge du module 1 (PRODUCTS, BUDGET = 100). Slide 5 : modèle de 08-assemblage-irt-glpk.ts (module 8).</p>
+</main>
+
+<script>
+// ─── Données : le fil rouge du cours ────────────────────────────
+const PRODUCTS = [
+  { id: "A", cost: 30, value: 8 },
+  { id: "B", cost: 50, value: 12 },
+  { id: "C", cost: 40, value: 10 },
+  { id: "D", cost: 20, value: 5 }
+];
+const BUDGET = 100;
+
+// ─── Calculs (fonctions pures) ──────────────────────────────────
+// Les 2ⁿ achats possibles : le bit i du masque dit si le produit i est acheté.
+const allSelections = products => Array.from({ length: 2 ** products.length }, (_, mask) => {
+  const chosen = products.filter((_, i) => (mask >> i) & 1);
+  return {
+    label: chosen.map(product => product.id).join("") || "∅",
+    cost: chosen.reduce((total, product) => total + product.cost, 0),
+    value: chosen.reduce((total, product) => total + product.value, 0)
+  };
+});
+
+// ─── Dessin SVG ─────────────────────────────────────────────────
+const NS = "http://www.w3.org/2000/svg";
+const make = (tag, attrs, text) => {
+  const node = document.createElementNS(NS, tag);
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+
+// Slide 3 : les 16 achats dans le plan (coût, satisfaction).
+(function drawSelections() {
+  const svg = document.getElementById("fig-3");
+  const width = 520, height = 360, margin = { left: 46, right: 16, top: 30, bottom: 44 };
+  const sx = v => margin.left + v / 150 * (width - margin.left - margin.right);
+  const sy = v => height - margin.bottom - v / 40 * (height - margin.top - margin.bottom);
+  const grid = make("g", { class: "grid" });
+  [10, 20, 30, 40].forEach(v => grid.append(make("line", { x1: sx(0), x2: sx(150), y1: sy(v), y2: sy(v) })));
+  svg.append(grid);
+  const axis = make("g", { class: "axis" });
+  axis.append(make("line", { x1: sx(0), x2: sx(150), y1: sy(0), y2: sy(0) }));
+  axis.append(make("line", { x1: sx(0), x2: sx(0), y1: sy(0), y2: sy(40) }));
+  svg.append(axis);
+  [0, 25, 50, 75, 100, 125, 150].forEach(v => svg.append(make("text", { class: "tick", x: sx(v), y: sy(0) + 16, "text-anchor": "middle" }, String(v))));
+  [0, 10, 20, 30, 40].forEach(v => svg.append(make("text", { class: "tick", x: sx(0) - 8, y: sy(v) + 4, "text-anchor": "end" }, String(v))));
+  svg.append(make("text", { class: "label", x: sx(150), y: height - 6, "text-anchor": "end" }, "coût (€)"));
+  svg.append(make("text", { class: "label", x: 4, y: 12 }, "satisfaction"));
+  svg.append(make("line", { class: "limit", x1: sx(BUDGET), x2: sx(BUDGET), y1: sy(0), y2: sy(40) }));
+  svg.append(make("text", { class: "limit-text", x: sx(BUDGET) + 6, y: sy(38) }, "budget 100 €"));
+
+  const selections = allSelections(PRODUCTS);
+  const best = selections.filter(s => s.cost <= BUDGET).reduce((top, s) => s.value > top.value ? s : top);
+  // Décalages d'étiquette pour les points qui se touchent (même coût).
+  const labelOffset = { AC: [-6, -8, "end"], BD: [8, 14, "start"], CD: [-6, -8, "end"], B: [8, 14, "start"], AD: [-6, -8, "end"], BC: [8, 12, "start"], ACD: [-6, -8, "end"] };
+  selections.forEach(s => {
+    const isBest = s === best;
+    const cls = isBest ? "pt-best" : s.cost <= BUDGET ? "pt-ok" : "pt-ko";
+    svg.append(make("circle", { class: cls, cx: sx(s.cost), cy: sy(s.value), r: isBest ? 7 : 4.5 }));
+    const [dx, dy, anchor] = labelOffset[s.label] ?? [8, 4, "start"];
+    svg.append(make("text", { class: "pt-text", x: sx(s.cost) + dx, y: sy(s.value) + dy, "text-anchor": anchor }, s.label));
+  });
+  svg.append(make("text", { class: "label", x: sx(best.cost) - 12, y: sy(best.value) - 14, "text-anchor": "end" }, `meilleur : ${best.label} = ${best.value}`));
+})();
+
+// Slide 5 : le nombre de tests de 6 questions selon la taille de la banque.
+// Valeurs exactes de C(n, 6), calculées en entiers (BigInt).
+const TEST_LENGTH = 6;
+const CHECKS_PER_SECOND = 1e9;
+const BANK_SIZES = [10, 100, 500, 1000, 4000];
+// Temps médian de glpk.solve sur 5 résolutions (Apple M1 Pro, Node 25, glpk.js 5),
+// sur des banques générées au hasard avec les mêmes règles que le modèle ci-contre.
+const GLPK_MILLISECONDS = { 10: 0.13, 100: 0.71, 500: 1.27, 1000: 2.02, 4000: 6.98 };
+
+const combinations = (n, k) => {
+  let result = 1n;
+  for (let i = 0n; i < BigInt(k); i++) result = result * (BigInt(n) - i) / (i + 1n);
+  return result;
+};
+const SUPERSCRIPTS = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+const powerOfTen = exponent => "10" + String(exponent).split("").map(digit => SUPERSCRIPTS[digit]).join("");
+const formatCount = count => count < 1e6
+  ? count.toLocaleString("fr-FR")
+  : `≈ ${(count / 10 ** Math.floor(Math.log10(count))).toFixed(2).replace(".", ",")} × ${powerOfTen(Math.floor(Math.log10(count)))}`;
+const formatDuration = seconds => {
+  if (seconds < 1e-3) return `${(seconds * 1e6).toFixed(1).replace(".", ",")} µs`;
+  if (seconds < 60) return `${seconds.toFixed(1).replace(".", ",")} s`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1).replace(".", ",")} h`;
+  if (seconds < 3.156e7) return `${Math.round(seconds / 86400)} jours`;
+  return `${Math.round(seconds / 3.156e7)} ans`;
+};
+
+(function drawCombinations() {
+  const svg = document.getElementById("fig-5");
+  const width = 520, height = 330, margin = { left: 64, right: 12, top: 30, bottom: 34 };
+  const maxExponent = 20;
+  const sx = exponent => margin.left + exponent / maxExponent * (width - margin.left - margin.right);
+  const rowHeight = (height - margin.top - margin.bottom) / BANK_SIZES.length;
+  const grid = make("g", { class: "grid" });
+  [0, 5, 10, 15, 20].forEach(exponent => {
+    grid.append(make("line", { x1: sx(exponent), x2: sx(exponent), y1: margin.top - 6, y2: height - margin.bottom }));
+    svg.append(make("text", { class: "tick", x: sx(exponent), y: height - margin.bottom + 16, "text-anchor": "middle" }, powerOfTen(exponent)));
+  });
+  svg.prepend(grid);
+  svg.append(make("text", { class: "label", x: 4, y: 14 }, "questions dans la banque"));
+  svg.append(make("text", { class: "label", x: width - margin.right, y: height - 2, "text-anchor": "end" }, "tests possibles (échelle log)"));
+  BANK_SIZES.forEach((size, i) => {
+    const count = Number(combinations(size, TEST_LENGTH));
+    const exponent = Math.log10(count);
+    const y = margin.top + i * rowHeight;
+    const barHeight = rowHeight * 0.42;
+    svg.append(make("text", { class: "label", x: margin.left - 10, y: y + barHeight * 0.75, "text-anchor": "end" }, size.toLocaleString("fr-FR")));
+    svg.append(make("rect", { class: "bar-on", x: sx(0), y, width: Math.max(2, sx(exponent) - sx(0)), height: barHeight }));
+    const duration = count / CHECKS_PER_SECOND;
+    const solverTime = `${GLPK_MILLISECONDS[size].toFixed(GLPK_MILLISECONDS[size] < 1 ? 2 : 0).replace(".", ",")} ms`;
+    const text = `${formatCount(count)} · tout vérifier ${formatDuration(duration)} · GLPK ${solverTime}`;
+    svg.append(make("text", { class: "bar-text", x: sx(0), y: y + barHeight + 15 }, text));
+  });
+})();
+
+// Slide 7 : part du temps de chaque règle, de la plus faible à la plus forte, en pourcentage cumulé.
+// Parts mesurées (médianes, 5 banques) : maximin en premier, puis moyenne sur les 6 ordres d'ajout de quotas, paires et S.
+const RULE_SHARES = [
+  { label: "longueur", share: 0, segment: "seg-length" },
+  { label: "ensemble S", share: 7, segment: "seg-set" },
+  { label: "paires", share: 17, segment: "seg-pairs" },
+  { label: "quotas", share: 35, segment: "seg-quotas" },
+  { label: "maximin", share: 41, segment: "seg-maximin" }
+];
+(function drawShares() {
+  const svg = document.getElementById("fig-costs");
+  const width = 520, height = 380, left = 44, right = 10, top = 30, bottom = 44;
+  const sy = percent => height - bottom - percent / 100 * (height - top - bottom);
+  const slot = (width - left - right) / RULE_SHARES.length;
+  const grid = make("g", { class: "grid" });
+  [0, 25, 50, 75, 100].forEach(value => {
+    grid.append(make("line", { x1: left, x2: width - right, y1: sy(value), y2: sy(value) }));
+    svg.append(make("text", { class: "tick", x: left - 6, y: sy(value) + 4, "text-anchor": "end" }, `${value} %`));
+  });
+  svg.append(grid);
+  let cumulative = 0;
+  RULE_SHARES.forEach((rule, i) => {
+    const x = left + i * slot + slot * 0.15, barWidth = slot * 0.7;
+    // Une colonne = l'empilement des parts des règles jusqu'ici.
+    let base = 0;
+    RULE_SHARES.slice(0, i + 1).forEach(part => {
+      if (part.share > 0) svg.append(make("rect", { class: part.segment, x, y: sy(base + part.share), width: barWidth, height: sy(base) - sy(base + part.share) }));
+      base += part.share;
+    });
+    cumulative += rule.share;
+    svg.append(make("text", { class: "bar-text", x: x + barWidth / 2, y: sy(cumulative) - 18, "text-anchor": "middle" }, `${cumulative} %`));
+    svg.append(make("text", { class: "tick", x: x + barWidth / 2, y: sy(cumulative) - 5, "text-anchor": "middle" }, rule.share === 0 ? "≈ 0 %" : `+${rule.share} %`));
+    svg.append(make("text", { class: "label", x: x + barWidth / 2, y: height - bottom + 18, "text-anchor": "middle" }, rule.label));
+  });
+})();
+
+// Slide 7 : quotas et paires, séparément puis ensemble (temps médians mesurés, maximin toujours présent).
+const INTERACTION_TIMES = [
+  { label: "maximin seul", seconds: 5.91, segment: "seg-maximin" },
+  { label: "+ quotas", seconds: 7.65, segment: "seg-quotas" },
+  { label: "+ paires", seconds: 5.32, segment: "seg-pairs" },
+  { label: "+ quotas et paires", seconds: 13.46, segment: "seg-both" }
+];
+(function drawInteraction() {
+  const svg = document.getElementById("fig-interaction");
+  const width = 720, left = 140, right = 70, top = 22, rowHeight = 30;
+  const sx = seconds => left + seconds / 15 * (width - left - right);
+  svg.append(make("text", { class: "label", x: 4, y: 12 }, "Avec le maximin : quotas et paires, seuls puis ensemble"));
+  INTERACTION_TIMES.forEach((row, i) => {
+    const y = top + i * rowHeight;
+    svg.append(make("text", { class: "tick", x: left - 8, y: y + 15, "text-anchor": "end" }, row.label));
+    svg.append(make("rect", { class: row.segment, x: left, y: y + 4, width: sx(row.seconds) - left, height: rowHeight * 0.55 }));
+    svg.append(make("text", { class: "bar-text", x: sx(row.seconds) + 6, y: y + 15 }, `${row.seconds.toFixed(1).replace(".", ",")} s`));
+  });
+})();
+
+// ─── Navigation ─────────────────────────────────────────────────
+const slides = [...document.querySelectorAll(".slide")];
+const steps = document.getElementById("steps");
+const counter = document.getElementById("counter");
+const prev = document.getElementById("prev");
+const next = document.getElementById("next");
+slides.forEach((slide, i) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.id = `go-${i + 1}`;
+  button.textContent = String(i + 1);
+  button.setAttribute("aria-label", `Slide ${i + 1} : ${slide.querySelector("h1, h2").textContent}`);
+  button.addEventListener("click", () => show(i));
+  steps.append(button);
+});
+let current = 0;
+function show(index) {
+  current = Math.max(0, Math.min(slides.length - 1, index));
+  slides.forEach((slide, i) => { slide.hidden = i !== current; });
+  [...steps.children].forEach((button, i) => {
+    if (i === current) button.setAttribute("aria-current", "step"); else button.removeAttribute("aria-current");
+  });
+  counter.textContent = `slide ${current + 1} / ${slides.length}`;
+  prev.disabled = current === 0;
+  next.disabled = current === slides.length - 1;
+}
+prev.addEventListener("click", () => show(current - 1));
+next.addEventListener("click", () => show(current + 1));
+document.addEventListener("keydown", event => {
+  if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") { event.preventDefault(); show(current + 1); }
+  if (event.key === "ArrowLeft" || event.key === "PageUp") show(current - 1);
+  if (event.key === "f" || event.key === "F") toggleFullscreen();
+});
+
+// Plein écran : la page entière passe en plein écran ; la classe is-fullscreen adapte la mise en page.
+const fullscreenButton = document.getElementById("fullscreen");
+const root = document.documentElement;
+const currentFullscreen = () => document.fullscreenElement ?? document.webkitFullscreenElement ?? null;
+function toggleFullscreen() {
+  if (currentFullscreen()) (document.exitFullscreen ?? document.webkitExitFullscreen).call(document);
+  else (root.requestFullscreen ?? root.webkitRequestFullscreen)?.call(root);
+}
+fullscreenButton.addEventListener("click", toggleFullscreen);
+function syncFullscreen() {
+  const isFullscreen = currentFullscreen() !== null;
+  root.classList.toggle("is-fullscreen", isFullscreen);
+  fullscreenButton.textContent = isFullscreen ? "Quitter le plein écran" : "Plein écran";
+}
+document.addEventListener("fullscreenchange", syncFullscreen);
+document.addEventListener("webkitfullscreenchange", syncFullscreen);
+show(0);
+</script>
+</body>
+</html>
