@@ -271,7 +271,7 @@ Lance un exercice avec `node modules/module-08-selection-items-irt/exercices/ex8
 
 Tu sais construire un premier assemblage MILP d'un test fixe IRT 2PL. Pour une banque réelle de plusieurs milliers d'items, il faudra traiter **séparément** la performance, les contraintes métier et la validation psychométrique.
 
-C'est le dernier module du parcours : reviens au [sommaire du cours](../../README.md) pour revoir un module ou relancer toutes les vérifications.
+C'est le dernier module du parcours principal. Pour aller plus loin, le [module 9](../module-09-sudoku/module-09-sudoku.md) (bonus) applique les mêmes outils à un problème de satisfaction : résoudre un sudoku et prouver que sa solution est unique. Tu peux aussi revenir au [sommaire du cours](../../README.md) pour revoir un module ou relancer toutes les vérifications.
 
 ## Références et prolongements
 
