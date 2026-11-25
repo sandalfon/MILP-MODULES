@@ -13,6 +13,7 @@
     "tp7": "node modules/module-07-diagnostic-qualite/exemples/07-validation.ts",
     "tp8": "node modules/module-08-selection-items-irt/exemples/08-information-irt.ts",
     "tp8-solveur": "node modules/module-08-selection-items-irt/exemples/08-assemblage-irt-glpk.ts",
+    "tp9": "node modules/module-09-sudoku/exemples/09-mini-sudoku.ts",
     "exemples": "node lib/verifier-tout.ts exemples",
     "corriges": "node lib/verifier-tout.ts corriges",
     "progression": "node lib/verifier-tout.ts exercices",
