@@ -107,7 +107,7 @@ La configuration (`tsconfig.json`) n'autorise que la syntaxe TypeScript que Node
 | [5](modules/module-05-algorithmes-resolution/module-05-algorithmes-resolution.md) | Algorithmes de résolution | ★★★ | relaxation, Branch and Bound, incumbent, gap, coupes | `npm run tp5` |
 | [6](modules/module-06-glpk/module-06-glpk.md) | MILP avec glpk.js | ★★☆ | modèle glpk, bornes, statuts, modèle construit depuis les données | `npm run tp6` |
 | [7](modules/module-07-diagnostic-qualite/module-07-diagnostic-qualite.md) | Diagnostic et qualité | ★★★ | tests, infaisabilité, relaxation élastique, formulation forte | `npm run tp7` |
-| [8](modules/module-08-selection-items-irt/module-08-selection-items-irt.md) | Sélection d'items IRT 2PL | ★★★ | information de Fisher, objectif moyen, maximin, TIF cible | `npm run tp8`, `npm run tp8-solveur` |
+| [8](modules/module-08-selection-items-irt/module-08-selection-items-irt.md) | Sélection d'items IRT 2PL | ★★★ | information de Fisher, objectif moyen, maximin, TIF cible, estimation de θ | `npm run tp8`, `npm run tp8-solveur`, `npm run tp8-capacite` |
 | [9](modules/module-09-sudoku/module-09-sudoku.md) (bonus) | Projet : solveur de sudoku | ★★★ | satisfaction, indicatrices x_{l,c,v}, Σ x = 1, coupe « no-good », unicité | `npm run tp9` |
 
 Les modules 1 à 5 n'utilisent que TypeScript, sans solveur : on y comprend **ce que fait** un solveur. À partir du module 6, on délègue la résolution à GLPK et on se concentre sur la **modélisation** et la **validation**.

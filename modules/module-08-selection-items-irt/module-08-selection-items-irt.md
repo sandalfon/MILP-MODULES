@@ -15,11 +15,12 @@
 - construire avec glpk.js une MILP d'**assemblage de test** : longueur, quotas, exclusions ;
 - choisir entre un objectif **moyen** et un objectif **maximin**, et linéariser le maximin avec une variable auxiliaire `z` ;
 - viser une **courbe d'information cible** (TIF cible) en minimisant des écarts absolus linéarisés ;
-- **valider** de façon indépendante le test produit par le solveur.
+- **valider** de façon indépendante le test produit par le solveur ;
+- **estimer la capacité** d'un candidat (MLE, EAP), y compris pendant un **test adaptatif**, et relier son erreur standard à l'information.
 
 ### Comment travailler ce module
 
-Lis d'abord les notions (§1 à §9), exécute ensuite les deux exemples commentés (§10) avec Node.js et contrôle leurs sorties (§11), puis réalise les exercices sans regarder les corrigés. Les exemples sont courts et conçus pour être modifiés : change la grille de θ, les poids, la longueur ou la paire exclue, et observe l'effet sur la sélection.
+Lis d'abord les notions (§1 à §9), exécute ensuite les trois exemples commentés (§10) avec Node.js et contrôle leurs sorties (§11), puis réalise les exercices sans regarder les corrigés. Les exemples sont courts et conçus pour être modifiés : change la grille de θ, les poids, la longueur ou la paire exclue, et observe l'effet sur la sélection ; dans le test adaptatif, change la capacité réelle, la longueur ou les règles, et relance plusieurs fois.
 
 ---
 
@@ -71,6 +72,33 @@ Extrait de la banque synthétique utilisée dans les exercices (12 items, domain
 Certains logiciels de calibration écrivent `P(θ) = 1 / (1 + exp(−D·a·(θ − b)))` avec **D = 1,7**, pour rapprocher la logistique de la loi normale. L'information devient alors `D²a²P(1−P)`. Avec D = 1,7, l'information maximale de q01 passe de 0,36 à 1,04.
 
 > **Piège majeur** : appliquer la formule sans D à des paramètres calibrés avec D (ou l'inverse) fausse **tous** les coefficients de l'objectif. Vérifie toujours la convention de la banque avant d'optimiser. Les exercices utilisent la convention **sans D**.
+
+### Après le test : estimer θ
+
+L'assemblage choisit les items **avant** la passation. Une fois le test passé, on connaît les réponses du candidat (1 = réussi, 0 = raté) et on estime sa capacité θ. La brique de base est la **vraisemblance** : la probabilité d'observer exactement ces réponses si la capacité vaut θ.
+
+```
+L(θ) = Π_i  Pᵢ(θ) si l'item i est réussi,  1 − Pᵢ(θ) sinon
+```
+
+Deux estimations classiques :
+
+| Méthode | Principe | Limite |
+|---|---|---|
+| **MLE** (maximum de vraisemblance) | le θ qui maximise L(θ) | n'existe pas si tout est juste (θ̂ → +∞) ou tout est faux (θ̂ → −∞) |
+| **EAP** (espérance a posteriori) | moyenne de θ pondérée par L(θ) × a priori N(0, 1) | toujours finie, mais tirée vers 0 par l'a priori |
+
+L'EAP donne aussi une **erreur standard** (l'écart-type a posteriori). Elle est reliée à l'information du test :
+
+```
+SE(θ̂) ≈ 1 / √I(θ̂)
+```
+
+C'est la raison pour laquelle on **maximise l'information** à l'assemblage : plus I(θ) est grande, plus la capacité d'un candidat de niveau θ est estimée précisément.
+
+**Test adaptatif** : on peut aussi choisir les items **pendant** le test. Après chaque réponse, on met à jour θ̂, puis on pose l'item le plus informatif à ce niveau, parmi ceux que les règles du test autorisent encore. L'exemple du §10.3 simule ainsi un candidat de capacité réelle 0,4 : après 11 questions sur 22, l'erreur standard de l'EAP est passée de 1 (l'a priori seul) à environ 0,4.
+
+> **Repère** : en 2PL, L(θ) ne dépend des réponses qu'à travers Σ aᵢ·rᵢ (la somme des discriminations des items réussis). Deux candidats qui réussissent des items différents mais de même discrimination totale reçoivent le même θ̂. Dans un vrai projet, on estime θ avec une bibliothèque validée (par exemple `mirt` ou `catR` en R), avec les paramètres et la convention D de la calibration.
 
 ## 3. Information du test et linéarité
 
@@ -236,11 +264,69 @@ npm run tp8-solveur
 
 Résultat attendu : items q02, q04, q07, q08, q10, q12 (domaines A, B, C, C, D, D) et une information moyenne ≈ 2,6602, comme au §4.
 
+### 10.3 Estimer la capacité pendant un test adaptatif : `08-estimation-capacite.ts`
+
+Le troisième script simule un candidat dont on connaît la capacité réelle, `REFERENCE_CAPACITY = 0.4`, et lui fait passer un test **adaptatif** de `TEST_LENGTH = 11` questions (« Après le test : estimer θ », §2). La banque compte **22 items** : les 12 du module (domaines A à D), et 10 items q13 à q22, répartis sur 3 nouveaux domaines E, F, G, dont a et b ont été tirés une fois au hasard (a dans [0,8 ; 2], b dans [−2 ; 2]) puis écrits dans le fichier. Le test respecte les **mêmes règles** que l'assemblage du §10.2, dont il reprend le code (`scoreItems`, `buildConstraints`, `buildAssemblyModel`, `hasUsableSolution`), étendues aux nouveaux domaines : longueur exacte 11, au moins un item par domaine (A à G), q02 et q05 jamais ensemble. À chaque question :
+
+1. il cherche les items **éligibles** : non encore posés, et tels qu'un test complet respectant toutes les règles existe encore avec eux. GLPK le vérifie en résolvant le modèle d'assemblage où les items déjà posés et le candidat sont imposés (`x_i = 1`, fonction `withFixedItems`) ;
+2. parmi eux, il pose le plus **informatif** au niveau θ̂ estimé jusque-là. Au départ, θ̂ = `INITIAL_THETA = -1` : on suppose le candidat plutôt faible, et l'a priori de l'EAP est centré sur cette valeur, N(−1, 1) ;
+3. il calcule la probabilité de réussite pour la capacité réelle : `probability2PL(item.a, item.b, REFERENCE_CAPACITY)` ;
+4. il simule la réponse : juste si cette probabilité dépasse un **tirage uniforme** entre 0 et 1 ;
+5. il met à jour θ̂ et son erreur standard par la méthode **EAP**, avec toutes les réponses reçues.
+
+Les fonctions de calcul sont pures : elles reçoivent les constantes de GLPK, la fonction de résolution et les tirages uniformes en paramètre. Le hasard (`Math.random()`) n'intervient que dans le programme principal, si bien que **chaque lancement simule un nouveau passage** du même candidat.
+
+```ts
+// Items éligibles : non encore posés, et compatibles avec un test complet valide.
+// Pour chaque candidat, GLPK cherche un test qui contient les items posés ET lui.
+async function findEligibleItems(
+  glpk: GlpkConstants, solveModel: SolveModel, items: Item[], askedItems: Item[], theta: number
+): Promise<Item[]> {
+  const model = buildAssemblyModel(glpk, scoreItems(items, [theta], [1]));
+  const remainingItems = items.filter(item => !askedItems.includes(item));
+  const feasibility = await Promise.all(remainingItems.map(async candidate =>
+    hasUsableSolution(glpk, await solveModel(withFixedItems(glpk, model, [...askedItems, candidate])))));
+  return remainingItems.filter((_, i) => feasibility[i]);
+}
+```
+
+```bash
+npm run tp8-capacite
+# ou : node modules/module-08-selection-items-irt/exemples/08-estimation-capacite.ts
+```
+
+Exemple de sortie (elle change à chaque lancement) :
+
+Exemple de sortie (elle change à chaque lancement, car les réponses sont tirées au hasard) :
+
+| question | éligibles | choisi pour θ̂ | item (a ; b ; domaine) | P(réussite) | tirage | réponse | θ̂ après | erreur std |
+|---|---|---|---|---|---|---|---|---|
+| 1 | les 22 items | −1,00 | q16 (2,0 ; −0,6 ; E) | 0,88 | 0,44 | juste | −0,24 | 0,78 |
+| 2 | 21 items | −0,24 | q21 (1,8 ; −0,3 ; G) | 0,78 | 0,48 | juste | 0,14 | 0,69 |
+| 3 | 20 items | 0,14 | q22 (1,7 ; 0,3 ; E) | 0,54 | 0,62 | fausse | −0,14 | 0,59 |
+| 4 | 19 items | −0,14 | q02 (1,8 ; −0,5 ; A) | 0,83 | 0,50 | juste | 0,05 | 0,54 |
+| 5 | 17 items (q05 exclu) | 0,05 | q08 (1,7 ; −0,1 ; C) | 0,70 | 0,58 | juste | 0,23 | 0,51 |
+| 6 | 16 items | 0,23 | q12 (1,6 ; 0,1 ; D) | 0,62 | 0,39 | juste | 0,40 | 0,50 |
+| 7 | 15 items | 0,40 | q10 (1,9 ; 0,9 ; D) | 0,28 | 0,15 | juste | 0,68 | 0,48 |
+| 8 | 14 items | 0,68 | q17 (1,9 ; 1,2 ; F) | 0,18 | 0,23 | fausse | 0,56 | 0,44 |
+| 9 | 13 items | 0,56 | q18 (1,7 ; 1,0 ; G) | 0,27 | 0,96 | fausse | 0,46 | 0,41 |
+| 10 | 12 items | 0,46 | q04 (1,5 ; 0,4 ; B) | 0,50 | 0,45 | juste | 0,57 | 0,40 |
+| 11 | 11 items | 0,57 | q15 (1,9 ; 1,4 ; G) | 0,13 | 1,00 | fausse | 0,52 | 0,38 |
+
+Test passé : q16 q21 q22 q02 q08 q12 q10 q17 q18 q04 q15 (les 7 domaines sont couverts, exclusion respectée) ; estimation finale θ̂ = 0,52 ± 0,38, pour une capacité réelle de 0,4. Relance le script plusieurs fois et observe :
+
+- les **règles réduisent les items éligibles** : une fois q02 posé, q05 disparaît (exclusion) ; quand il ne reste plus assez de questions pour couvrir tous les domaines, seuls les items des domaines manquants restent éligibles, quel que soit leur intérêt au niveau θ̂ ;
+- le **point de départ** compte : partant de θ̂ = −1, le test pose d'abord un item facile (q02), puis remonte vers la capacité réelle au fil des réponses justes ;
+- θ̂ **oscille** autour de la capacité réelle : une réponse juste le fait monter, une fausse le fait descendre, de moins en moins à mesure que les réponses s'accumulent ;
+- l'**erreur standard diminue** à chaque question (1 → environ 0,4) : chaque item apporte de l'information ;
+- tant que les règles le permettent, les items choisis ont une difficulté b **proche de θ̂** au moment du choix : c'est là que leur information est maximale (§2) ;
+- d'un lancement à l'autre, θ̂ final varie : avec 11 questions, l'erreur standard descend vers 0,4, et l'écart à la capacité réelle est le plus souvent inférieur à une erreur standard, mais pas toujours.
+
 ## 11. Vérification et points de vigilance
 
 - **Avant l'optimisation**, valide les données : paramètres a et b plausibles (a > 0), **convention de paramétrisation** (avec ou sans D, §2), **unités de θ** (même échelle que la calibration) et **statut des items** (retirer les items périmés, en révision ou surexposés).
 - **Après la résolution**, vérifie le statut, puis la longueur, les quotas, les exclusions et l'**information obtenue à chaque θ** de la grille, pas seulement la valeur de l'objectif (§8).
-- **Contrôle croisé des exemples** : `npm run tp8` doit redonner la colonne « moyenne » du §2 (q01 ≈ 0,2420, q05 ≈ 0,5412) et `npm run tp8-solveur` le statut 5 (`GLP_OPT`) avec une information moyenne ≈ 2,6602. Un écart signale une erreur de formule (parenthèses, carré de a, convention D) ou de modèle.
+- **Contrôle croisé des exemples** : `npm run tp8` doit redonner la colonne « moyenne » du §2 (q01 ≈ 0,2420, q05 ≈ 0,5412) et `npm run tp8-solveur` le statut 5 (`GLP_OPT`) avec une information moyenne ≈ 2,6602, et `npm run tp8-capacite` une erreur standard qui diminue à chaque question jusqu'à ≈ 0,4 (θ̂, lui, change à chaque lancement). Un écart signale une erreur de formule (parenthèses, carré de a, convention D) ou de modèle.
 
 ---
 
@@ -266,6 +352,7 @@ Lance un exercice avec `node modules/module-08-selection-items-irt/exercices/ex8
 5. Écart à une cible : deux variables d⁺, d⁻ ≥ 0 par point, et on minimise leur somme.
 6. Les règles métier (longueur, quotas, ennemis, testlets) sont toutes des contraintes linéaires sur les xᵢ.
 7. On valide toujours la solution du solveur avec un contrôle indépendant.
+8. Après la passation, on estime θ par MLE ou EAP ; l'erreur standard vaut environ 1/√I(θ) : c'est pour elle qu'on maximise l'information.
 
 ## À la fin du module
 
