@@ -405,11 +405,27 @@ button:focus-visible { outline: 3px solid var(--highlight); outline-offset: 2px;
 .box-small { font-family: var(--font-body); font-size: 13px; fill: var(--ink); }
 .pill { fill: #f4f6f8; stroke: var(--ink); stroke-width: 1.5; }
 .pill-line { stroke: var(--ink); stroke-width: 1.2; opacity: 0.5; }
-.health .lead-list { font-size: var(--step-0); }
-.health .lead-list ul { font-size: var(--step--1); }
+.health .lead-list { font-size: var(--step-1); gap: 10px; }
+.health .lead-list ul { font-size: var(--step-0); }
 .health-side { display: grid; gap: 14px; }
 .health .warning { font-size: var(--step--1); }
 .health .pill-figure svg { max-width: 14rem; }
+.combos { grid-column: 2; font-size: var(--step-0); padding-left: 1.2em; }
+.combos ul { font-size: var(--step--1); }
+@media (max-width: 760px) { .combos { grid-column: 1; } }
+.big-rules { font-size: var(--step-1); }
+.big-rules td:nth-child(3) { font-family: var(--font-math); white-space: nowrap; }
+.big-rules td.muted { font-family: var(--font-body); font-style: italic; white-space: normal; }
+.right-col { display: grid; gap: 16px; align-content: start; }
+.combo-centered { grid-column: 1 / -1; margin: 0; text-align: center; font-size: var(--step-1); }
+.attention { margin: 0; text-align: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: clamp(1.8rem, 1.2rem + 2vw, 3rem); color: var(--c-cons); letter-spacing: 0.04em; border: 3px solid var(--c-cons); border-radius: 6px; padding: 8px 12px; background: var(--paper); }
+.warn-icon { color: var(--c-obj); }
+.slide.health { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@media (max-width: 760px) { .slide.health { grid-template-columns: minmax(0, 1fr); } }
+.health .text { max-width: none; }
+.health .attention { font-size: clamp(1.2rem, 0.7rem + 1.5vw, 2.2rem); white-space: nowrap; }
+.try-me { display: block; text-align: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: clamp(1.6rem, 1rem + 2vw, 2.6rem); color: var(--c-var); text-decoration: none; border: 3px solid var(--c-var); border-radius: 6px; padding: 10px 16px; background: var(--paper); }
+.try-me:hover, .try-me:focus-visible { background: var(--accent-soft); text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -761,41 +777,23 @@ console.log(result.z, result.vars);
   </section>
 
   <!-- 13 -->
-  <section class="slide" aria-labelledby="t7" hidden>
+  <section class="slide single" aria-labelledby="t16" hidden>
     <header class="slide-title">
-        <span class="eyebrow">13 · Une version réaliste</span>
-        <h2 id="t7">Test unique de 32 questions pour tous les niveaux</h2>
+      <span class="eyebrow">13 · Les règles du test</span>
+      <h2 id="t16">32 questions parmi 4 000 : les règles</h2>
     </header>
-    <div class="text">
-      <ul class="rule-list">
-        <li>4 000 questions, 32 par test</li>
-        <li>16 domaines, 1 à 3 questions chacun</li>
-        <li>400 sous-domaines, jamais 2 questions de suite du même</li>
-        <li><em>au moins 4 questions d'un ensemble de 100 sous-domaines, dont celles des positions 2, 10, 20 et 25</em></li>
-        <li><em>200 paires de questions incompatibles</em></li>
-      </ul>
-      <ul class="rule-list results">
-        <li><strong>Objectif maximin</strong> : maximiser le minimum, c'est-à-dire rendre le niveau de capacité le moins bien mesuré le meilleur possible
-          <ul><li>z = la plus faible information du test parmi θ = −2, −1, 0, 1, 2 ; on maximise z</li></ul>
-        </li>
-      </ul>
-      <ul class="rule-list results boxed" aria-label="Résultats">
-        <li><strong>GLPK</strong> : test prouvé à moins de 2 % du meilleur en <strong>1 à 32 s</strong> (médiane 14 s)</li>
-        <li><strong>Ordre des questions</strong> : fixé en moins de 1 ms, après la résolution
-          <ul><li>positions 2, 10, 20, 25 et sous-domaines jamais consécutifs</li></ul>
-        </li>
-      </ul>
-    </div>
-    <div class="form big" aria-label="Modèle de la version réaliste">
-      <span class="kw kw-obj">maximiser</span>
-      <span class="indent">z <span class="muted">· information minimale sur θ = −2, −1, 0, 1, 2</span></span>
-      <span class="kw kw-cons">sous contraintes</span>
-      <span class="indent">Σ <span class="var">x<sub>i</sub></span> = 32</span>
-      <span class="indent">1 ≤ Σ<sub>i ∈ d</sub> <span class="var">x<sub>i</sub></span> ≤ 3 <span class="muted">· pour chaque domaine d</span></span>
-      <span class="indent">Σ<sub>i ∈ S</sub> <span class="var">x<sub>i</sub></span> ≥ 4 <span class="muted">· S : 100 sous-domaines</span></span>
-      <span class="indent"><span class="var">x<sub>i</sub></span> + <span class="var">x<sub>j</sub></span> ≤ 1 <span class="muted">· 200 paires</span></span>
-      <span class="indent">z ≤ Σ I<sub>i</sub>(θ) · <span class="var">x<sub>i</sub></span> <span class="muted">· pour chaque θ</span></span>
-      <span class="indent"><span class="var">x<sub>i</sub></span> ∈ {0, 1}</span>
+    <div class="table-wrap">
+      <table class="rules big-rules" aria-label="Règles du test et contraintes correspondantes">
+        <thead><tr><th>règle</th><th>type</th><th>contrainte</th></tr></thead>
+        <tbody>
+          <tr><td>4 000 questions, 32 par test</td><td>longueur</td><td>Σ <span class="var">x<sub>i</sub></span> = 32</td></tr>
+          <tr><td>16 domaines, 1 à 3 questions chacun</td><td>quotas</td><td>1 ≤ Σ<sub>i ∈ d</sub> <span class="var">x<sub>i</sub></span> ≤ 3</td></tr>
+          <tr><td>400 sous-domaines, jamais 2 questions de suite du même</td><td>ordre</td><td class="muted">au moment de ranger ou de poser</td></tr>
+          <tr><td><em>au moins 4 questions d'un ensemble S de 100 sous-domaines</em></td><td>ensemble S</td><td>Σ<sub>i ∈ S</sub> <span class="var">x<sub>i</sub></span> ≥ 4</td></tr>
+          <tr><td><em>dont celles des positions 2, 10, 20 et 25</em></td><td>ordre</td><td class="muted">au moment de ranger ou de poser</td></tr>
+          <tr><td><em>200 paires de questions incompatibles</em></td><td>exclusion</td><td><span class="var">x<sub>i</sub></span> + <span class="var">x<sub>j</sub></span> ≤ 1</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -807,7 +805,7 @@ console.log(result.z, result.vars);
     </header>
     <div class="text">
       <ul class="rule-list lead-list">
-        <li>Mêmes règles que la slide 13, mais le test se construit pendant qu'on le passe.</li>
+        <li>Règles de la slide 13, mais le test se construit pendant qu'on le passe.</li>
         <li>Avant chaque question, un <strong>shadow test</strong> : un test complet fantôme qui
           <ul>
             <li>contient les questions déjà posées ;</li>
@@ -822,6 +820,13 @@ console.log(result.z, result.vars);
           </ul>
         </li>
       </ul>
+    </div>
+    <div class="right-col">
+    <div class="form big" aria-label="Objectif du shadow test">
+      <span class="muted">à chaque question, avec la capacité estimée θ̂ :</span>
+      <span class="kw kw-obj">maximiser</span>
+      <span class="indent">Σ I<sub>i</sub>(θ̂) · <span class="var">x<sub>i</sub></span> <span class="muted">· information au niveau du candidat</span></span>
+    </div>
       <ul class="rule-list results boxed" aria-label="Résultats de la simulation">
         <li><strong>Simulation</strong> : 3 candidats (capacité −1,2, 0,4 et 1,5), 4 000 questions, 32 posées
           <ul>
@@ -832,26 +837,45 @@ console.log(result.z, result.vars);
         </li>
       </ul>
     </div>
-    <div class="form big" aria-label="Modèle du shadow test">
-      <span class="muted">à chaque question, avec la capacité estimée θ̂ :</span>
-      <span class="kw kw-obj">maximiser</span>
-      <span class="indent">Σ I<sub>i</sub>(θ̂) · <span class="var">x<sub>i</sub></span> <span class="muted">· information au niveau du candidat</span></span>
-      <span class="kw kw-cons">sous contraintes</span>
-      <span class="indent">Σ <span class="var">x<sub>i</sub></span> = 32</span>
-      <span class="indent">1 ≤ Σ<sub>i ∈ d</sub> <span class="var">x<sub>i</sub></span> ≤ 3 <span class="muted">· pour chaque domaine d</span></span>
-      <span class="indent">Σ<sub>i ∈ S</sub> <span class="var">x<sub>i</sub></span> ≥ 4</span>
-      <span class="indent"><span class="var">x<sub>i</sub></span> + <span class="var">x<sub>j</sub></span> ≤ 1 <span class="muted">· 200 paires</span></span>
-      <span class="indent"><span class="var">x<sub>i</sub></span> = 1 <span class="muted">· questions déjà posées</span></span>
-      <span class="indent">Σ <span class="var">y<sub>i</sub></span> = 1, <span class="var">y<sub>i</sub></span> ≤ <span class="var">x<sub>i</sub></span> <span class="muted">· y<sub>i</sub> : question posée maintenant</span></span>
-      <span class="indent"><span class="var">y<sub>i</sub></span> = 0 <span class="muted">· si même sous-domaine que la précédente, ou hors S aux positions 2, 10, 20, 25</span></span>
-      <span class="indent"><span class="var">x<sub>i</sub></span>, <span class="var">y<sub>i</sub></span> ∈ {0, 1}</span>
-    </div>
+    <p class="combo-centered"><strong>≈ 1,62 × 10¹¹⁵</strong> suites possibles de 32 questions parmi 4 000</p>
   </section>
 
   <!-- 15 -->
+  <section class="slide" aria-labelledby="t7" hidden>
+    <header class="slide-title">
+        <span class="eyebrow">15 · Une version réaliste</span>
+        <h2 id="t7">Test unique de 32 questions pour tous les niveaux</h2>
+    </header>
+    <div class="text">
+      <ul class="rule-list lead-list">
+        <li>Règles de la slide 13, pour un test unique, le même pour tous les candidats.</li>
+      </ul>
+      <ul class="rule-list results">
+        <li><strong>Objectif maximin</strong> : maximiser le minimum, c'est-à-dire rendre le niveau de capacité le moins bien mesuré le meilleur possible
+          <ul><li>z = la plus faible information du test parmi θ = −2, −1, 0, 1, 2 ; on maximise z</li></ul>
+        </li>
+      </ul>
+    </div>
+    <div class="right-col">
+    <div class="form big" aria-label="Objectif du test unique">
+      <span class="muted">une seule fois, pour tous les candidats :</span>
+      <span class="kw kw-obj">maximiser</span>
+      <span class="indent">z <span class="muted">· information minimale sur θ = −2, −1, 0, 1, 2</span></span>
+    </div>
+      <ul class="rule-list results boxed" aria-label="Résultats">
+        <li><strong>GLPK</strong> : test prouvé à moins de 2 % du meilleur en <strong>1 à 32 s</strong> (médiane 14 s)</li>
+        <li><strong>Ordre des questions</strong> : fixé en moins de 1 ms, après la résolution
+          <ul><li>positions 2, 10, 20, 25 et sous-domaines jamais consécutifs</li></ul>
+        </li>
+      </ul>
+    </div>
+    <p class="combo-centered"><strong>≈ 6,19 × 10⁷⁹</strong> tests possibles de 32 questions parmi 4 000</p>
+  </section>
+
+  <!-- 16 -->
   <section class="slide" aria-labelledby="t8" hidden>
     <header class="slide-title">
-        <span class="eyebrow">15 · Annexe : le coût de chaque règle</span>
+        <span class="eyebrow">16 · Annexe : le coût de chaque règle</span>
         <h2 id="t8">Annexe : qu'est-ce qui coûte du temps ?</h2>
     </header>
     <div class="text">
@@ -893,13 +917,14 @@ console.log(result.z, result.vars);
     </figure>
   </section>
 
-  <!-- 16 -->
+  <!-- 17 -->
   <section class="slide health" aria-labelledby="t15" hidden>
     <header class="slide-title">
-      <span class="eyebrow">16 · Rappel santé</span>
+      <span class="eyebrow">17 · Rappel santé</span>
       <h2 id="t15">Doliprane (paracétamol) : bien le prendre</h2>
     </header>
     <div class="text">
+      <a class="try-me" href="https://github.com/sandalfon/MILP-MODULES" target="_blank" rel="noopener">Testez-moi !</a>
       <ul class="rule-list lead-list">
         <li><strong>Adulte (plus de 50 kg)</strong> :
           <ul>
@@ -914,6 +939,7 @@ console.log(result.z, result.vars);
       </ul>
     </div>
     <div class="health-side">
+      <p class="attention" role="note"><span class="warn-icon" aria-hidden="true">⚠</span> ATTENTION ! <span class="warn-icon" aria-hidden="true">⚠</span></p>
       <ul class="rule-list boxed warning" aria-label="Mises en garde">
         <li><strong>Surdosage</strong> : atteinte grave du foie, parfois mortelle, même sans symptôme au début.
           <ul><li>en cas de doute : appeler le 15 ou un centre antipoison tout de suite</li></ul>
@@ -934,7 +960,6 @@ console.log(result.z, result.vars);
         <ellipse cx="270" cy="190" rx="34" ry="16" class="pill"/>
         <line x1="270" y1="175" x2="270" y2="205" class="pill-line"/>
       </svg>
-      <figcaption><span>Illustration générique, pas une photo du produit.</span></figcaption>
     </figure>
     </div>
   </section>
