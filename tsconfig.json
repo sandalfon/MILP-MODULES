@@ -17,6 +17,8 @@
   },
   // Les exercices sont vérifiés à part (tsconfig.exercices.json) :
   // tant que leurs TODO ne sont pas complétés, ils contiennent des erreurs de type.
+  // Les copies vierges (lib/clean/) ne sont vérifiées qu'à travers leur exercice.
+  "exclude": ["lib/clean/**"],
   "include": [
     "lib/**/*.ts",
     "modules/*/exemples/**/*.ts",

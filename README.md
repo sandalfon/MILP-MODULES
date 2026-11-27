@@ -62,7 +62,7 @@ npm run typecheck:exercices   # erreurs de type restantes dans tes exercices
 
 ### Repartir de zéro : les copies `-clean`
 
-Chaque exercice a une copie vierge à côté de lui, avec le suffixe `-clean` (par exemple `ex1-1-evaluer-decision-clean.ts`). Tu travailles dans le fichier sans suffixe ; la copie reste intacte.
+Chaque exercice a une copie vierge, rangée dans `lib/clean/` avec la même arborescence et le suffixe `-clean` (par exemple `lib/clean/modules/module-01-fondamentaux/exercices/ex1-1-evaluer-decision-clean.ts`). Tu travailles dans l'exercice ; la copie reste intacte.
 
 Pour recommencer **tous les exercices d'un module** :
 
@@ -75,11 +75,11 @@ Le script remet chaque exercice commencé dans son état vierge et indique ceux 
 Pour recommencer **un seul exercice**, recopie sa version vierge :
 
 ```bash
-cp modules/module-01-fondamentaux/exercices/ex1-1-evaluer-decision-clean.ts \
+cp lib/clean/modules/module-01-fondamentaux/exercices/ex1-1-evaluer-decision-clean.ts \
    modules/module-01-fondamentaux/exercices/ex1-1-evaluer-decision.ts
 ```
 
-`npm run progression` et `npm run typecheck:exercices` ignorent les copies `-clean` : ils ne regardent que ton travail.
+`npm run progression` et `npm run typecheck:exercices` ignorent les copies vierges : ils ne regardent que ton travail.
 
 ### TypeScript et exercices
 

@@ -139,7 +139,7 @@ On n'écrit jamais « // TODO » ailleurs que sur la première ligne d'un bloc d
 
 **Noms de fichiers** : en français, en minuscules avec tirets (`ex2-3-relaxation-arrondi.ts`, `06-sac-a-dos-glpk.ts`).
 
-**Copies vierges** : chaque exercice `exercices/exN-k-….ts` a une copie `exN-k-…-clean.ts`, jamais modifiée par l'élève. Quand on modifie l'énoncé d'un exercice, on modifie **les deux** fichiers. `npm run verifier:exercices` vérifie la copie vierge (le fichier de travail peut contenir des réponses) ; `progression` et `typecheck:exercices` l'ignorent.
+**Copies vierges** : chaque exercice `modules/<module>/exercices/exN-k-….ts` a une copie `lib/clean/modules/<module>/exercices/exN-k-…-clean.ts` (même arborescence, sous `lib/clean/`), jamais modifiée par l'élève. Quand on modifie l'énoncé d'un exercice, on modifie **les deux** fichiers. `npm run verifier:exercices` vérifie la copie vierge (le fichier de travail peut contenir des réponses) ; `progression` et `typecheck:exercices` l'ignorent.
 
 **Exemple commenté** (`exemples/`) : première ligne `// Module N — Exemple commenté : …`, puis `// Lancer : npm run tpN`. Données en tête, calculs en fonctions pures, affichage à la fin.
 
