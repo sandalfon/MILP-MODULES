@@ -26,7 +26,7 @@ const files = readdirSync(modulesDir)
   .filter(folder => existsSync(folder))
   .flatMap(folder =>
     readdirSync(folder)
-      .filter(fileName => fileName.endsWith(".ts") && !fileName.endsWith("-clean.ts"))
+      .filter(fileName => fileName.endsWith(".ts"))
       .sort()
       .map(fileName => join(folder, fileName))
   );

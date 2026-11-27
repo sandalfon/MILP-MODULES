@@ -13,14 +13,17 @@
 //   3. cette version complétée doit passer TOUTE son auto-vérification ;
 //   4. elle doit aussi être correctement typée (aucune erreur TypeScript).
 //
-// Quand un exercice a une copie vierge « …-clean.ts », c'est elle qui est
-// vérifiée : le fichier de travail peut déjà contenir les réponses de l'élève.
+// Quand un exercice a une copie vierge « …-clean.ts » (dans lib/clean/), c'est
+// elle qui est vérifiée : le fichier de travail peut déjà contenir les réponses
+// de l'élève. Elle est recopiée temporairement dans le dossier exercices/ pour
+// être exécutée, car ses imports relatifs ne sont valables que là.
 
 import ts from "typescript";
 import { readdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { cleanCopyPath } from "./copies-vierges.ts";
 
 type Summary = { passed: number; failed: number };
 
@@ -35,21 +38,22 @@ type Report = {
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const modulesDir = join(rootDir, "modules");
 const TEMPORARY_PREFIX = "__complete__";
-const CLEAN_COPY_SUFFIX = "-clean.ts";
+const RAW_PREFIX = "__vierge__";
 
-// Noms des exercices d'un dossier, sans les copies vierges ni les fichiers temporaires.
+// Noms des exercices d'un dossier, sans les fichiers temporaires.
 const listExerciseNames = (folder: string): string[] =>
   readdirSync(folder)
     .filter(fileName =>
       fileName.endsWith(".ts") &&
-      !fileName.endsWith(CLEAN_COPY_SUFFIX) &&
-      !fileName.startsWith(TEMPORARY_PREFIX))
+      !fileName.startsWith(TEMPORARY_PREFIX) &&
+      !fileName.startsWith(RAW_PREFIX))
     .sort();
 
 // Version de référence de l'exercice : sa copie vierge si elle existe.
 function getReferencePath(folder: string, exerciseName: string): string {
-  const cleanCopy = join(folder, exerciseName.replace(/\.ts$/, CLEAN_COPY_SUFFIX));
-  return existsSync(cleanCopy) ? cleanCopy : join(folder, exerciseName);
+  const exercisePath = join(folder, exerciseName);
+  const cleanCopy = cleanCopyPath(rootDir, exercisePath);
+  return existsSync(cleanCopy) ? cleanCopy : exercisePath;
 }
 
 // Une consigne s'écrit toujours sur une ligne qui commence par « // TODO »
@@ -159,6 +163,7 @@ const exerciseFolders = readdirSync(modulesDir)
 
 const reports: Report[] = [];
 const completedFiles = new Map<string, Report>();
+const rawCopies: string[] = [];
 
 try {
   for (const folder of exerciseFolders) {
@@ -167,13 +172,17 @@ try {
       const exercisePath = getReferencePath(folder, exerciseName);
       const solutionPath = join(solutionsFolder, exerciseName);
       const report: Report = {
-        exercise: relative(modulesDir, exercisePath),
+        exercise: relative(rootDir, exercisePath),
         problems: [], completedBlockCount: 0, rawSummary: null, completedSummary: null
       };
       reports.push(report);
 
-      // 1. L'exercice tel quel doit aller jusqu'à son bilan.
-      const rawRun = runFile(exercisePath);
+      // 1. L'exercice tel quel doit aller jusqu'à son bilan. Il est exécuté
+      // depuis le dossier exercices/, où ses imports relatifs sont valables.
+      const rawPath = join(folder, RAW_PREFIX + exerciseName);
+      writeFileSync(rawPath, readFileSync(exercisePath, "utf8"));
+      rawCopies.push(rawPath);
+      const rawRun = runFile(rawPath);
       report.rawSummary = rawRun.summary;
       if (!rawRun.summary) report.problems.push(`l'exercice non complété plante avant son bilan : ${rawRun.error}`);
 
@@ -206,7 +215,7 @@ try {
     );
   }
 } finally {
-  for (const file of completedFiles.keys()) rmSync(file, { force: true });
+  for (const file of [...completedFiles.keys(), ...rawCopies]) rmSync(file, { force: true });
 }
 
 const formatSummary = (summary: Summary | null): string =>
@@ -215,7 +224,7 @@ const formatSummary = (summary: Summary | null): string =>
 for (const report of reports) {
   const isOk = report.problems.length === 0;
   console.log(
-    `${isOk ? "✔" : "✘"} ${report.exercise.padEnd(62)}` +
+    `${isOk ? "✔" : "✘"} ${report.exercise.padEnd(86)}` +
     ` tel quel : ${formatSummary(report.rawSummary).padEnd(9)}` +
     ` complété (${report.completedBlockCount} TODO) : ${formatSummary(report.completedSummary)}`
   );

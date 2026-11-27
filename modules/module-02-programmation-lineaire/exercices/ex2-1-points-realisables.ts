@@ -64,11 +64,7 @@ const TEST_POINTS: Coordinates[] = [[1, 1], [3, 1], [2, 3], [-1, 0], [1.5, 2.5]]
 //            isFeasible(-1, 0) → false.
 // (Indice 1 en fin de fichier.)
 function isFeasible(x: number, y: number): boolean {
-  return x >= 0 &&
-    y >= 0 &&
-    x + y <= 4 &&
-    x <= 2 &&
-    y <= 3 ; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 2 — Valeur de l'objectif.
@@ -78,7 +74,7 @@ function isFeasible(x: number, y: number): boolean {
 // Sortie   : un nombre, la valeur 3x + 2y.
 // Exemple  : computeObjective(1, 3) → 3·1 + 2·3 = 9.
 function computeObjective(x: number, y: number): number {
-  return 3*x + 2* y; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 3 — Tableau d'évaluation des points.
@@ -95,7 +91,7 @@ function computeObjective(x: number, y: number): number {
 // Attention: l'objectif est calculé aussi pour les points irréalisables.
 // (Indice 3 en fin de fichier.)
 function evaluatePoints(points: Coordinates[]): PointRow[] {
-  return points.map(([x, y]) => ({ x, y, isFeasible: isFeasible(x, y), objective: computeObjective(x, y) }));
+  return []; // ← à remplacer
 }
 
 // TODO 4 — Meilleur point réalisable.
@@ -107,10 +103,7 @@ function evaluatePoints(points: Coordinates[]): PointRow[] {
 //            findBestPoint([[5, 5], [-1, -1]]) → null.
 // (Indice 4 en fin de fichier.)
 function findBestPoint(points: Coordinates[]): PointRow | null {
-return  evaluatePoints(points).reduce<PointRow | null>(
-      (best, evaluate) => evaluate.isFeasible && (!best || evaluate.objective > best.objective) ? evaluate : best,
-      null
-    )
+  return undefined; // ← à remplacer
 }
 
 // ─── 3. PROGRAMME PRINCIPAL (fourni) ────────────────────────────

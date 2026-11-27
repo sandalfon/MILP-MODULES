@@ -96,7 +96,7 @@ function findBestSolution(decisions: Decision[], isFeasible: FeasibilityTest): S
 // Attention: la décision vide donne 0.
 // (Indice 1 en fin de fichier.)
 function countSelected(x: Decision): number {
-  return PRODUCTS.reduce((sum, product)=> x[product.id]+sum,0); // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 2 — Réalisabilité dans le modèle de base.
@@ -108,7 +108,7 @@ function countSelected(x: Decision): number {
 //            isFeasibleBaseModel({ A: 1, B: 1, C: 1, D: 0 }) → false (120 > 100).
 // (Indice 2 en fin de fichier.)
 function isFeasibleBaseModel(x: Decision): boolean {
-  return totalCost(x)<=BUDGET; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 3 — Réalisabilité dans le modèle enrichi.
@@ -124,7 +124,7 @@ function isFeasibleBaseModel(x: Decision): boolean {
 // Attention: exactement MAX_PRODUCTS produits est autorisé (≤, pas <).
 // (Indice 3 en fin de fichier.)
 function isFeasibleWithCardinality(x: Decision): boolean {
-  return isFeasibleBaseModel(x) && countSelected(x) <=MAX_PRODUCTS; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // ─── 4. PROGRAMME PRINCIPAL (fourni) ────────────────────────────

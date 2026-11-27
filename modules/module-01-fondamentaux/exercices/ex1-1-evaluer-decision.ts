@@ -65,7 +65,7 @@ const BUDGET: number = 100;
 // Attention: la décision vide { A: 0, B: 0, C: 0, D: 0 } coûte 0.
 // (Indice 1 en fin de fichier.)
 function totalCost(x: Decision): number {
-  return PRODUCTS.reduce((sum,product) => sum + x[product.id]*product.cost,0 ); // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 2 — Valeur totale d'une décision (la fonction objectif).
@@ -75,7 +75,7 @@ function totalCost(x: Decision): number {
 // Exemple  : totalValue({ A: 1, B: 1, C: 0, D: 1 }) → 8 + 12 + 5 = 25.
 // (Indice 2 en fin de fichier.)
 function totalValue(x: Decision): number {
-  return PRODUCTS.reduce((sum,product) => sum + x[product.id]*product.value,0 ); // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 3 — Respect du domaine binaire x_i ∈ {0, 1}.
@@ -89,7 +89,7 @@ function totalValue(x: Decision): number {
 //            la décision invalide : sa variable vaut alors undefined.
 // (Indice 3 en fin de fichier.)
 function satisfiesDomain(x: Decision): boolean {
-  return PRODUCTS.every(product => x[product.id]===1 || x[product.id]===0 ); // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 4 — Réalisabilité d'une décision.
@@ -105,7 +105,7 @@ function satisfiesDomain(x: Decision): boolean {
 //            hors domaine (0.5, undefined) rend la décision irréalisable.
 // (Indice 4 en fin de fichier.)
 function isFeasible(x: Decision): boolean {
-  return satisfiesDomain(x) && totalCost(x)<=BUDGET; // ← à remplacer
+  return undefined; // ← à remplacer
 }
 
 // TODO 5 — Identifiants des produits choisis.
@@ -118,8 +118,7 @@ function isFeasible(x: Decision): boolean {
 // Attention: la décision vide donne [].
 // (Indice 5 en fin de fichier.)
 function listSelectedIds(x: Decision): string[] {
-  return PRODUCTS.filter(product=>x[product.id]===1).map(product=> product.id)
- // ← à remplacer
+  return []; // ← à remplacer
 }
 
 // ─── 3. PROGRAMME PRINCIPAL (fourni) ────────────────────────────
